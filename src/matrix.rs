@@ -1,8 +1,11 @@
-use num_traits::float::Float;
+use num_traits::{float, cast};
 use core::slice::Iter;
 use std::fmt;
 use std::ops;
 use std::cmp;
+
+pub trait Float: float::Float + cast::FromPrimitive + fmt::Debug {}
+impl<T: float::Float + cast::FromPrimitive + fmt::Debug> Float for T {}
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct Matrix<T : Float> {
@@ -12,11 +15,6 @@ pub struct Matrix<T : Float> {
 }
 
 impl<T : Float> Matrix<T> {
-    // Use a hack to not have to support num_traits::cast::FromPrimitive
-    fn one() -> T {
-        T::powi(T::zero(), 0)
-    }
-
     pub fn new(m: u32, n: u32, data: Vec<T>) -> Matrix<T> {
         assert!(m > 0);
         assert!(n > 0);
@@ -34,12 +32,21 @@ impl<T : Float> Matrix<T> {
         Matrix { m: m, n: n, data: data }
     }
 
+    pub fn one(m: u32, n: u32) -> Matrix<T> {
+        assert!(m > 0);
+        assert!(n > 0);
+
+        let mut data = Vec::with_capacity((m * n) as usize);
+        data.resize((m * n) as usize, T::from_u8(1).unwrap());
+        Matrix { m: m, n: n, data: data }
+    }
+
     pub fn new_identity(m: u32, n: u32) -> Matrix<T> {
         assert_eq!(m, n);
         let mut result = Matrix::<T>::zero(m, n);
 
         for i in 0..cmp::min(m, n) {
-            result[(i, i)] = Matrix::<T>::one();
+            result[(i, i)] = T::from_u8(1).unwrap();
         }
 
         result
@@ -84,6 +91,14 @@ impl<T : Float> Matrix<T> {
         }
 
         result
+    }
+
+    pub fn get_row(&self, m: u32) -> Matrix<T> {
+        self.get_sub_matrix(m, 0, 1, self.get_n())
+    }
+
+    pub fn get_column(&self, n: u32) -> Matrix<T> {
+        self.get_sub_matrix(0, n, self.get_m(), 1)
     }
 
     pub fn h_concat(&self, other: &Matrix<T>) -> Matrix<T> {
@@ -227,7 +242,7 @@ impl<T : Float> Matrix<T> {
                     }
                     sub_i += 1;
                 }
-                det = det + T::powi(-Matrix::<T>::one(), x as i32) * self[(0, x)] * submatrix.determinant_n(n - 1);
+                det = det + T::powi(T::from_i8(-1).unwrap(), x as i32) * self[(0, x)] * submatrix.determinant_n(n - 1);
             }
 
             det
@@ -251,10 +266,19 @@ impl<T : Float> Matrix<T> {
     }
 
     pub fn pinv(&self) -> Option<Matrix<T>> {
-        // Only right pseudo inverse is implemented.
-        assert!(self.m < self.n);
+        let l_interim = (&self.transpose() * self).inv();
+        let r_interim = (self * &self.transpose()).inv();
 
-        Some(&self.transpose() * &(self * &self.transpose()).inv()?)
+        match (l_interim, r_interim) {
+            (Some(u_l_interim), _) => Some(&u_l_interim * &self.transpose()),
+            (_, Some(u_r_interim)) => Some(&self.transpose() * &u_r_interim),
+            _ => None // TODO: Implement SVD
+        }
+    }
+
+    fn item_index(&self, idx: (u32, u32)) -> usize {
+        assert!(idx.0 < self.m && idx.1 < self.n, "index out of bounds: m={} n={} self.m={}, self.n={}", idx.0, idx.1, self.m, self.n);
+        (idx.0 * self.n + idx.1) as usize
     }
 }
 
@@ -262,17 +286,14 @@ impl<'a, T : Float> ops::Index<(u32, u32)> for Matrix<T> {
     type Output = T;
 
     fn index(&self, idx: (u32, u32)) -> &T {
-        assert!(idx.0 < self.m && idx.1 < self.n);
-
-        &self.data[(idx.0 * self.n + idx.1) as usize]
+        &self.data[self.item_index(idx)]
     }
 }
 
 impl<'a, T : Float> ops::IndexMut<(u32, u32)> for Matrix<T> {
     fn index_mut(&mut self, idx: (u32, u32)) -> &mut T {
-        assert!(idx.0 < self.m && idx.1 < self.n);
-
-        &mut self.data[(idx.0 * self.n + idx.1) as usize]
+        let index = self.item_index(idx);
+        &mut self.data[index]
     }
 }
 
@@ -312,7 +333,7 @@ impl<'a, 'b, T : Float> ops::Mul<&'b Matrix<T>> for &'a Matrix<T> {
     type Output = Matrix<T>;
 
     fn mul(self, other: &'b Matrix<T>) -> Matrix<T> {
-        assert_eq!(self.n, other.get_m());
+        assert_eq!(self.n, other.get_m(), "self.n == other.m");
 
         let mut result = Matrix::zero(self.m, other.get_n());
 
