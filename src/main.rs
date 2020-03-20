@@ -1,6 +1,7 @@
 extern crate num_traits;
 
 mod matrix;
+mod linreg;
 
 use matrix::Matrix;
 
