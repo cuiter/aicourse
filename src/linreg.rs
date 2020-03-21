@@ -5,21 +5,28 @@ pub enum SolveMethod {
     NormalEquation
 }
 
+/// A linear regression problem solver.
+/// It needs to be trained before it can make predictions.
 #[derive(Debug, PartialEq, Clone)]
 pub struct Solver<T : Float> {
     configuration: Option<Matrix<T>>
 }
 
+/// Adds an "x0" feature to the left side of the input matrix.
+/// The "x0" feature is always assigned to the constant 1,
+/// so that it can be used as a base offset.
 fn add_zero_feature<T : Float>(inputs: &Matrix<T>) -> Matrix<T> {
     Matrix::one(inputs.get_m(), 1).h_concat(inputs)
 }
 
 impl<T : Float> Solver<T> {
+    /// Creates a new Solver with an empty configuration.
     pub fn new() -> Solver<T> {
         Solver { configuration: None }
     }
 
-
+    /// Computes the "cost" (mean square error) between the calculated output
+    /// and correct output given a configuration.
     fn cost(configuration: &Matrix<T>, n_inputs: &Matrix<T>, correct_outputs: &Matrix<T>) -> T {
         let outputs = Solver::<T>::run_n(configuration, n_inputs);
 
@@ -51,9 +58,17 @@ impl<T : Float> Solver<T> {
             }
 
             if new_cost < cost {
-                current_configuration = new_configuration;
+                // Heading in the right direction.
+                // After leaving the "top" of a parabola, it is usually safe
+                // to speed up the learning rate.
                 learning_rate = learning_rate * T::from_f32(1.1).unwrap();
+                current_configuration = new_configuration;
             } else {
+                // If the new cost is higher than the previous cost,
+                // the learning rate is too high. This makes the algorithm jump
+                // over the perfect result into the wrong direction.
+                // In this case, keep the old configuration and decrease the
+                // learning rate significantly.
                 learning_rate = learning_rate * T::from_f32(0.5).unwrap();
             }
         }
@@ -61,6 +76,10 @@ impl<T : Float> Solver<T> {
         Some(current_configuration)
     }
 
+    /// Computes an optimal configuration by inverting a matrix.
+    /// This may fail because the matrix may not be invertible.
+    /// In this case, a technique called SVD is needed to compute a result,
+    /// but is not yet implemented.
     fn train_normal_equation(n_inputs: &Matrix<T>, outputs: &Matrix<T>) -> Option<Matrix<T>> {
         let a = &n_inputs.transpose() * n_inputs;
         let ainv = &a.pinv()?; // TODO: Figure out SVD in Matrix::pinv
@@ -68,14 +87,21 @@ impl<T : Float> Solver<T> {
         Some(&int * outputs)
     }
 
+    /// Runs the hypothesis on the inputs (with zero feature added) given the configuration.
     fn run_n(configuration: &Matrix<T>, n_inputs: &Matrix<T>) -> Matrix<T> {
         (&configuration.transpose() * &n_inputs.transpose()).transpose()
     }
 
+    /// Returns the configuration if it is set (after at least
+    /// one successful training), panics otherwise.
     pub fn get_configuration(&self) -> &Matrix<T> {
         self.configuration.as_ref().unwrap()
     }
 
+    /// Trains the solver with the given inputs and outputs.
+    /// The solve method can either be GradientDescent or NormalEquation.
+    /// Returns whether the training has succeeded.
+    /// If the training has not succeeded, the configuration will be None.
     pub fn train(&mut self, inputs: &Matrix<T>, outputs: &Matrix<T>, method: SolveMethod) -> bool {
         assert_eq!(inputs.get_m(), outputs.get_m());
         assert_eq!(outputs.get_n(), 1);
@@ -90,6 +116,7 @@ impl<T : Float> Solver<T> {
         self.configuration != None
     }
 
+    /// Runs a prediction on the given inputs to form desired outputs.
     pub fn run(&self, inputs: &Matrix<T>) -> Matrix<T> {
         assert!(self.configuration != None, "solver needs to be trained first");
         let n_configuration = self.get_configuration();

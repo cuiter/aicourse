@@ -4,9 +4,11 @@ use std::fmt;
 use std::ops;
 use std::cmp;
 
+/// Any floating point type that can be used by Matrix<T>.
 pub trait Float: float::Float + cast::FromPrimitive + fmt::Debug {}
 impl<T: float::Float + cast::FromPrimitive + fmt::Debug> Float for T {}
 
+/// A linear algebra matrix consisting of real (floating point) numbers.
 #[derive(Debug, PartialEq, Clone)]
 pub struct Matrix<T : Float> {
     m: u32, // Number of rows
@@ -15,6 +17,8 @@ pub struct Matrix<T : Float> {
 }
 
 impl<T : Float> Matrix<T> {
+    /// Constructs a matrix with the given size and data.
+    /// The data is in row-major order.
     pub fn new(m: u32, n: u32, data: Vec<T>) -> Matrix<T> {
         assert!(m > 0);
         assert!(n > 0);
@@ -23,6 +27,7 @@ impl<T : Float> Matrix<T> {
         Matrix { m: m, n: n, data: data }
     }
 
+    /// Constructs a matrix with the given size with all its elements set to zero.
     pub fn zero(m: u32, n: u32) -> Matrix<T> {
         assert!(m > 0);
         assert!(n > 0);
@@ -32,6 +37,7 @@ impl<T : Float> Matrix<T> {
         Matrix { m: m, n: n, data: data }
     }
 
+    /// Constructs a matrix with the given size with all its elements set to one.
     pub fn one(m: u32, n: u32) -> Matrix<T> {
         assert!(m > 0);
         assert!(n > 0);
@@ -41,6 +47,8 @@ impl<T : Float> Matrix<T> {
         Matrix { m: m, n: n, data: data }
     }
 
+    /// Constructs an identity matrix with the given size.
+    /// The size must be square.
     pub fn new_identity(m: u32, n: u32) -> Matrix<T> {
         assert_eq!(m, n);
         let mut result = Matrix::<T>::zero(m, n);
@@ -52,20 +60,26 @@ impl<T : Float> Matrix<T> {
         result
     }
 
+    /// Returns m (number of rows).
     pub fn get_m(&self) -> u32 {
         self.m
     }
+    /// Returns m (number of columns).
     pub fn get_n(&self) -> u32 {
         self.n
     }
+    /// Returns the number of elements in the matrix.
     pub fn get_size(&self) -> u32 {
         self.m * self.n
     }
 
+    /// Returns an iterator that loops through all the elements of the
+    /// matrix in row-major order.
     pub fn iter(&self) -> Iter<T> {
         self.data.iter()
     }
 
+    /// Compares whether two matrices are equal within a given precision.
     pub fn approx_eq(&self, other: &Matrix<T>, precision: T) -> bool {
         if self.m != other.get_m() || self.n != other.get_n() {
             false
@@ -78,6 +92,7 @@ impl<T : Float> Matrix<T> {
         }
     }
 
+    /// Extracts a part of the matrix, starting at (start_m, start_n) with size (m, n).
     pub fn get_sub_matrix(&self, start_m: u32, start_n: u32, m: u32, n: u32) -> Matrix<T> {
         assert!(start_m + m <= self.m);
         assert!(start_n + n <= self.n);
@@ -93,14 +108,18 @@ impl<T : Float> Matrix<T> {
         result
     }
 
+    /// Extracts one row of the matrix.
     pub fn get_row(&self, m: u32) -> Matrix<T> {
         self.get_sub_matrix(m, 0, 1, self.get_n())
     }
 
+    /// Extracts one column of the matrix.
     pub fn get_column(&self, n: u32) -> Matrix<T> {
         self.get_sub_matrix(0, n, self.get_m(), 1)
     }
 
+    /// Concatenates two matrices horizontally. The other matrix
+    /// is the matrix to the right.
     pub fn h_concat(&self, other: &Matrix<T>) -> Matrix<T> {
         assert!(self.m == other.get_m());
 
@@ -119,6 +138,8 @@ impl<T : Float> Matrix<T> {
         result
     }
 
+    /// Concatenates two matrices vertically. The other matrix
+    /// is the matrix to the bottom.
     pub fn v_concat(&self, other: &Matrix<T>) -> Matrix<T> {
         assert!(self.n == other.get_n());
 
@@ -139,6 +160,7 @@ impl<T : Float> Matrix<T> {
         result
     }
 
+    /// Swaps two rows in-place.
     pub fn swap_rows(&mut self, m_1: u32, m_2: u32) {
         assert!(m_1 < self.m);
         assert!(m_2 < self.m);
@@ -155,14 +177,17 @@ impl<T : Float> Matrix<T> {
         self.data.splice(range_2.clone(), temp_1);
     }
 
+    /// Returns the sum of all elements in the matrix.
     pub fn sum(&self) -> T {
         self.data.iter().fold(T::zero(), |sum, &val| { sum + val })
     }
 
+    /// Returns the associated identity matrix.
     pub fn identity(&self) -> Matrix<T> {
         Matrix::new_identity(self.n, self.n)
     }
 
+    /// Returns the matrix transposed (row and column indices swapped).
     pub fn transpose(&self) -> Matrix<T> {
         let mut result = Matrix::zero(self.n, self.m);
         for m in 0..self.m {
@@ -173,6 +198,7 @@ impl<T : Float> Matrix<T> {
         result
     }
 
+    /// Performs the Gauss-Jordan elimination on the matrix.
     pub fn gauss_jordan(&self) -> Matrix<T> {
         let mut result = self.clone();
 
@@ -211,14 +237,12 @@ impl<T : Float> Matrix<T> {
         result
     }
 
+    /// Solves the linear equation in the matrix,
+    /// with the right-most column being the output.
     pub fn solve(&self) -> Matrix<T> {
         let gj_result = self.gauss_jordan();
-        let mut result = Matrix::zero(self.m, 1);
-        for m in 0..self.m {
-            result[(m, 0)] = gj_result[(m, self.n - 1)];
-        }
 
-        result
+        gj_result.get_column(self.n - 1)
     }
 
     fn determinant_n(&self, n: u32) -> T {
@@ -249,12 +273,14 @@ impl<T : Float> Matrix<T> {
         }
     }
 
+    /// Returns the determinant of the matrix.
     pub fn determinant(&self) -> T {
         assert_eq!(self.m, self.n);
 
         self.determinant_n(self.n)
     }
 
+    /// Returns the inverse of the matrix, only if the determinant is nonzero.
     pub fn inv(&self) -> Option<Matrix<T>> {
         if self.m != self.n || self.determinant() == T::zero() {
             None
@@ -265,6 +291,9 @@ impl<T : Float> Matrix<T> {
         }
     }
 
+    /// Returns the Moore-Penrose inverse, if it can be computed by
+    /// left or right inverse. SVD as used in Matlab or GNU Octave `pinv`
+    /// is not yet implemented.
     pub fn pinv(&self) -> Option<Matrix<T>> {
         let l_interim = (&self.transpose() * self).inv();
         let r_interim = (self * &self.transpose()).inv();
@@ -276,6 +305,7 @@ impl<T : Float> Matrix<T> {
         }
     }
 
+    /// Returns the self.data vector element index given a 2D element index (row, column).
     fn item_index(&self, idx: (u32, u32)) -> usize {
         assert!(idx.0 < self.m && idx.1 < self.n, "index out of bounds: m={} n={} self.m={}, self.n={}", idx.0, idx.1, self.m, self.n);
         (idx.0 * self.n + idx.1) as usize
@@ -285,12 +315,15 @@ impl<T : Float> Matrix<T> {
 impl<'a, T : Float> ops::Index<(u32, u32)> for Matrix<T> {
     type Output = T;
 
+    /// Returns an element of the matrix indexed by (row, column).
     fn index(&self, idx: (u32, u32)) -> &T {
         &self.data[self.item_index(idx)]
     }
 }
 
 impl<'a, T : Float> ops::IndexMut<(u32, u32)> for Matrix<T> {
+    /// Returns a mutable reference of an element inside
+    /// the matrix indexed by (row, column).
     fn index_mut(&mut self, idx: (u32, u32)) -> &mut T {
         let index = self.item_index(idx);
         &mut self.data[index]
@@ -332,6 +365,7 @@ impl<'a, 'b, T : Float> ops::Sub<&'b Matrix<T>> for &'a Matrix<T> {
 impl<'a, 'b, T : Float> ops::Mul<&'b Matrix<T>> for &'a Matrix<T> {
     type Output = Matrix<T>;
 
+    /// Returns the matrix product of two matrices.
     fn mul(self, other: &'b Matrix<T>) -> Matrix<T> {
         assert_eq!(self.n, other.get_m(), "self.n == other.m");
 
@@ -354,6 +388,7 @@ impl<'a, 'b, T : Float> ops::Mul<&'b Matrix<T>> for &'a Matrix<T> {
 impl<'a, T : Float> ops::Mul<T> for &'a Matrix<T> {
     type Output = Matrix<T>;
 
+    /// Multiplies every element of the matrix with the given scalar.
     fn mul(self, other: T) -> Matrix<T> {
         Matrix::new(self.m, self.n, self.data.iter().map(|a| *a * other).collect())
     }
@@ -362,6 +397,7 @@ impl<'a, T : Float> ops::Mul<T> for &'a Matrix<T> {
 impl<'a, T : Float> ops::Div<T> for &'a Matrix<T> {
     type Output = Matrix<T>;
 
+    /// Divides every element of the matrix with the given scalar.
     fn div(self, other: T) -> Matrix<T> {
         Matrix::new(self.m, self.n, self.data.iter().map(|a| *a / other).collect())
     }
@@ -399,6 +435,10 @@ impl<T : Float> ops::DivAssign<T> for Matrix<T> {
 }
 
 impl<T : Float + fmt::Display> fmt::Display for Matrix<T> {
+    /// Prints the contents of the matrix in a pretty format.
+    /// Every row is printed on a new line.
+    /// It is recommended to print a newline before printing the matrix,
+    /// so that the lines are aligned.
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         for m in 0..self.m {
             if m == 0 {

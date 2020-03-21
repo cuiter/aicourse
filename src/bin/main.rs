@@ -1,9 +1,4 @@
-extern crate num_traits;
-
-mod matrix;
-mod linreg;
-
-use matrix::Matrix;
+use aicourse::matrix::Matrix;
 
 fn main() {
     let m1 = Matrix::new(2, 2, vec![9.0, 1.0, 2.0, 3.0]);
