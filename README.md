@@ -17,11 +17,18 @@ little practical experience in machine learning.
 
 ## Lecture 1-4
 
-I have implemented a Matrix struct that represents a linear algebra matrix.
+There is a Matrix struct that represents a linear algebra matrix.
 It has methods for addition, multiplication, inversion amongst other
 fundamental operators.
 
-I'm currently working on solving the multivariate linear regression problem.
-The gradient descent approach has yet to be implemented. The normal equation
-method will probably be trivial to implement, given that matrix inversion is
-already implemented.
+Both gradient descent and normal equation methods are implemented for solving
+the multivariate linear regression problem.
+
+The gradient descent implementation "learns" the optimal learning rate by
+increasing the learning rate when the new cost is less than the current cost,
+and decreasing it when the new cost is higher.
+The convergence threshold is currently hardcoded, but precise enough for >99%
+accuracy using the datasets in the examples.
+
+The normal equation method can fail on some datasets because singular value
+decomposition (SVD) is not implemented for calculating the pseudo-inverse.
