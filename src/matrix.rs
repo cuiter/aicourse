@@ -5,8 +5,8 @@ use std::ops;
 use std::cmp;
 
 /// Any floating point type that can be used by Matrix<T>.
-pub trait Float: float::Float + cast::FromPrimitive + fmt::Debug {}
-impl<T: float::Float + cast::FromPrimitive + fmt::Debug> Float for T {}
+pub trait Float: float::Float + float::FloatConst + cast::FromPrimitive + fmt::Debug + fmt::Display {}
+impl<T: float::Float + float::FloatConst + cast::FromPrimitive + fmt::Debug + fmt::Display> Float for T {}
 
 /// A linear algebra matrix consisting of real (floating point) numbers.
 #[derive(Debug, PartialEq, Clone)]
@@ -716,7 +716,7 @@ impl<T : Float> ops::DivAssign<T> for Matrix<T> {
     }
 }
 
-impl<T : Float + fmt::Display> fmt::Display for Matrix<T> {
+impl<T : Float> fmt::Display for Matrix<T> {
     /// Prints the contents of the matrix in a pretty format.
     /// Every row is printed on a new line.
     /// It is recommended to print a newline before printing the matrix,
