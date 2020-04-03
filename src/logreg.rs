@@ -1,6 +1,6 @@
 use crate::matrix::{Matrix, Float};
 
-/// A linear regression problem solver.
+/// A logistic regression problem solver.
 /// It needs to be trained before it can make predictions.
 #[derive(Debug, PartialEq, Clone)]
 pub struct Solver<T : Float> {
