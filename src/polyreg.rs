@@ -28,8 +28,8 @@ impl<T : Float, F : Fn(&Matrix<T>, &Matrix<T>) -> T> Solver<T, F> {
 
     /// Computes the "cost" (mean square error) between the calculated output
     /// and correct output given a configuration.
-    fn cost(hypothesis: &F, configuration: &Matrix<T>, n_inputs: &Matrix<T>, correct_outputs: &Matrix<T>) -> T {
-        let outputs = Solver::<T, F>::run_n(hypothesis, configuration, n_inputs);
+    fn cost(&self, n_inputs: &Matrix<T>, correct_outputs: &Matrix<T>) -> T {
+        let outputs = self.run_n(n_inputs);
 
         let diff = &outputs - correct_outputs;
         let diffsquared = Matrix::new(diff.get_m(), diff.get_n(), diff.iter().map(|x| *x * *x).collect());
@@ -39,7 +39,7 @@ impl<T : Float, F : Fn(&Matrix<T>, &Matrix<T>) -> T> Solver<T, F> {
     }
 
     /// Performs gradient descent without feature scaling.
-    fn train_gradient_descent(hypothesis_f: &F, n_inputs: &Matrix<T>, outputs: &Matrix<T>) -> Option<Matrix<T>> {
+    fn train_gradient_descent(hypothesis: &F, n_inputs: &Matrix<T>, correct_outputs: &Matrix<T>) -> Option<Matrix<T>> {
         let n_inputs_trans = n_inputs.transpose();
         let mut current_configuration = Matrix::<T>::zero(n_inputs.get_n(), 1);
 
@@ -47,13 +47,15 @@ impl<T : Float, F : Fn(&Matrix<T>, &Matrix<T>) -> T> Solver<T, F> {
         let mut learning_rate = T::from_f32(1.0).unwrap();
 
         loop {
-            let hypothesis = Solver::<T, F>::run_n(hypothesis_f, &current_configuration, n_inputs);
-            let loss = &hypothesis - outputs;
-            let cost = Solver::<T, F>::cost(hypothesis_f, &current_configuration, n_inputs, outputs);
+            let current_solver = Solver { hypothesis: hypothesis, configuration: Some(current_configuration.clone()) };
+            let current_outputs = current_solver.run_n(n_inputs);
+            let loss = &current_outputs - correct_outputs;
+            let cost = current_solver.cost(n_inputs, correct_outputs);
             let gradient = &(&n_inputs_trans * &loss) / T::from_u32(n_inputs.get_m()).unwrap();
 
             let new_configuration = &current_configuration - &(&gradient * learning_rate);
-            let new_cost = Solver::<T, F>::cost(hypothesis_f, &new_configuration, n_inputs, outputs);
+            let new_solver = Solver { hypothesis: hypothesis, configuration: Some(new_configuration.clone()) };
+            let new_cost = new_solver.cost(n_inputs, correct_outputs);
 
             if T::abs(new_cost - cost) < cost_epsilon {
                 break;
@@ -110,28 +112,6 @@ impl<T : Float, F : Fn(&Matrix<T>, &Matrix<T>) -> T> Solver<T, F> {
         Some(configuration)
     }
 
-    /// Runs the hypothesis on the inputs (with zero feature added) given the configuration.
-    fn run_n(hypothesis: &F, configuration: &Matrix<T>, n_inputs: &Matrix<T>) -> Matrix<T> {
-        let result = Matrix::new(n_inputs.get_m(), 1,
-            (0..n_inputs.get_m())
-            .map(|row_idx| n_inputs.get_row(row_idx))
-            .map(|row_data| {
-                dbg!(&row_data);
-                hypothesis(configuration, &row_data)
-            })
-            .collect());
-        dbg!(configuration);
-        dbg!(n_inputs);
-        dbg!(&result);
-        result
-    }
-
-    /// Returns the configuration if it is set (after at least
-    /// one successful training), panics otherwise.
-    pub fn get_configuration(&self) -> &Matrix<T> {
-        self.configuration.as_ref().unwrap()
-    }
-
     /// Trains the solver with the given inputs and outputs.
     /// The solve method can either be GradientDescent or NormalEquation.
     /// Returns whether the training has succeeded.
@@ -166,6 +146,25 @@ impl<T : Float, F : Fn(&Matrix<T>, &Matrix<T>) -> T> Solver<T, F> {
         self.configuration != None
     }
 
+    /// Runs the hypothesis on the inputs (with zero feature added) given the configuration.
+    fn run_n(&self, n_inputs: &Matrix<T>) -> Matrix<T> {
+        let result = Matrix::new(n_inputs.get_m(), 1,
+            (0..n_inputs.get_m())
+            .map(|row_idx| n_inputs.get_row(row_idx))
+            .map(|row_data| {
+                dbg!(&row_data);
+                (self.hypothesis)(self.get_configuration(), &row_data)
+            })
+            .collect());
+        result
+    }
+
+    /// Returns the configuration if it is set (after at least
+    /// one successful training), panics otherwise.
+    pub fn get_configuration(&self) -> &Matrix<T> {
+        self.configuration.as_ref().unwrap()
+    }
+
     /// Runs a prediction on the given inputs to form desired outputs.
     /// ```
     /// let inputs = aicourse::matrix::Matrix::new(3, 2, vec![3.0, 5.0,
@@ -189,7 +188,7 @@ impl<T : Float, F : Fn(&Matrix<T>, &Matrix<T>) -> T> Solver<T, F> {
 
         let n_inputs = add_zero_feature(inputs);
 
-        Solver::<T, F>::run_n(&self.hypothesis, self.get_configuration(), &n_inputs)
+        self.run_n(&n_inputs)
     }
 }
 
