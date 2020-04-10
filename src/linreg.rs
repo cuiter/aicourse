@@ -9,7 +9,7 @@ pub enum SolveMethod {
 /// It needs to be trained before it can make predictions.
 #[derive(Debug, PartialEq, Clone)]
 pub struct Solver<T : Float> {
-    configuration: Option<Matrix<T>>
+    pub configuration: Option<Matrix<T>>
 }
 
 /// Adds an "x0" feature to the left side of the input matrix.
