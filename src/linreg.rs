@@ -270,4 +270,18 @@ mod tests {
             assert_eq!(solver.run(&tests_inputs()[i]), tests_outputs()[i], "test case {}", i);
         }
     }
+
+    #[test]
+    #[should_panic]
+    fn run_untrained() {
+        let solver = Solver::<f64>::new();
+        solver.run(&tests_inputs()[0]);
+    }
+
+    #[test]
+    #[should_panic]
+    fn get_configuration_untrained() {
+        let solver = Solver::<f64>::new();
+        solver.get_configuration();
+    }
 }
