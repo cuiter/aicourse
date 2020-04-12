@@ -1,28 +1,30 @@
-use crate::matrix::{Matrix, Float};
+use crate::matrix::{Float, Matrix};
 
 pub enum SolveMethod {
     GradientDescent,
-    NormalEquation
+    NormalEquation,
 }
 
 /// A linear regression problem solver.
 /// It needs to be trained before it can make predictions.
 #[derive(Debug, PartialEq, Clone)]
-pub struct Solver<T : Float> {
-    pub configuration: Option<Matrix<T>>
+pub struct Solver<T: Float> {
+    pub configuration: Option<Matrix<T>>,
 }
 
 /// Adds an "x0" feature to the left side of the input matrix.
 /// The "x0" feature is always assigned to the constant 1,
 /// so that it can be used as a base offset.
-fn add_zero_feature<T : Float>(inputs: &Matrix<T>) -> Matrix<T> {
+fn add_zero_feature<T: Float>(inputs: &Matrix<T>) -> Matrix<T> {
     Matrix::one(inputs.get_m(), 1).h_concat(inputs)
 }
 
-impl<T : Float> Solver<T> {
+impl<T: Float> Solver<T> {
     /// Creates a new Solver with an empty configuration.
     pub fn new() -> Solver<T> {
-        Solver { configuration: None }
+        Solver {
+            configuration: None,
+        }
     }
 
     /// Computes the "cost" (mean square error) between the calculated output
@@ -31,7 +33,11 @@ impl<T : Float> Solver<T> {
         let outputs = Solver::<T>::run_n(configuration, n_inputs);
 
         let diff = &outputs - correct_outputs;
-        let diffsquared = Matrix::new(diff.get_m(), diff.get_n(), diff.iter().map(|x| *x * *x).collect());
+        let diffsquared = Matrix::new(
+            diff.get_m(),
+            diff.get_n(),
+            diff.iter().map(|x| *x * *x).collect(),
+        );
         let costsum = diffsquared.sum();
 
         costsum / T::from_u32(n_inputs.get_m() * 2).unwrap()
@@ -79,7 +85,10 @@ impl<T : Float> Solver<T> {
 
     /// Performs gradient descent with feature scaling.
     /// Results in more accurate and quicker convergence.
-    fn train_gradient_descent_feature_scaling(n_inputs: &Matrix<T>, outputs: &Matrix<T>) -> Option<Matrix<T>> {
+    fn train_gradient_descent_feature_scaling(
+        n_inputs: &Matrix<T>,
+        outputs: &Matrix<T>,
+    ) -> Option<Matrix<T>> {
         let mut inputs_scale = Matrix::one(1, n_inputs.get_n());
         for n in 0..n_inputs.get_n() {
             let mut max_value = T::zero();
@@ -162,7 +171,9 @@ impl<T : Float> Solver<T> {
 
         self.configuration = match method {
             SolveMethod::NormalEquation => Solver::<T>::train_normal_equation(&n_inputs, outputs),
-            SolveMethod::GradientDescent => Solver::<T>::train_gradient_descent_feature_scaling(&n_inputs, outputs),
+            SolveMethod::GradientDescent => {
+                Solver::<T>::train_gradient_descent_feature_scaling(&n_inputs, outputs)
+            }
         };
 
         self.configuration != None
@@ -185,7 +196,10 @@ impl<T : Float> Solver<T> {
     /// assert!(predicted_outputs.approx_eq(&outputs, 0.1));
     /// ```
     pub fn run(&self, inputs: &Matrix<T>) -> Matrix<T> {
-        assert!(self.configuration != None, "solver needs to be trained first");
+        assert!(
+            self.configuration != None,
+            "solver needs to be trained first"
+        );
         let n_configuration = self.get_configuration();
         assert_eq!(inputs.get_n(), n_configuration.get_m() - 1);
 
@@ -195,60 +209,30 @@ impl<T : Float> Solver<T> {
     }
 }
 
-
-
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    fn tests_inputs() -> Vec<Matrix<f64>> {
-        vec![
-             Matrix::new(9, 2, vec![50.0, 6.0,
-                                    100.0, 5.0,
-                                    200.0, 3.0,
-                                    400.0, 0.0,
-                                    500.0, 0.0,
-                                    600.0, 500.0,
-                                    700.0, 0.0,
-                                    800.0, 0.0,
-                                   -100.0, 0.0]),
-             Matrix::new(3, 1, vec![0.0,
-                                    1.0,
-                                    2.0])]
-    }
-
-    fn tests_outputs() -> Vec<Matrix<f64>> {
-        vec![
-             Matrix::new(9, 1, vec![1512.0,
-                                    2010.0,
-                                    3006.0,
-                                    5000.0,
-                                    6000.0,
-                                    8000.0,
-                                    8000.0,
-                                    9000.0,
-                                       0.0]),
-             Matrix::new(3, 1, vec![0.0,
-                                    1.0,
-                                    2.0])]
-    }
-
-    fn tests_configuration() -> Vec<Matrix<f64>> {
-        vec![
-             Matrix::new(3, 1, vec![1000.0,
-                                    10.0,
-                                    2.0]),
-             Matrix::new(2, 1, vec![0.0,
-                                    1.0])]
-    }
+    use crate::testdata::linreg::*;
 
     #[test]
     fn train_gradient_descent() {
         for i in 0..tests_inputs().len() {
             let mut solver = Solver::<f64>::new();
-            solver.train(&tests_inputs()[i], &tests_outputs()[i], SolveMethod::GradientDescent);
+            solver.train(
+                &tests_inputs()[i],
+                &tests_outputs()[i],
+                SolveMethod::GradientDescent,
+            );
 
-            assert!(solver.get_configuration().approx_eq(&tests_configuration()[i], 0.01), "test case {}\nconfiguration =\n{}\nexpected =\n{}", i, solver.get_configuration(), tests_configuration()[i]);
+            assert!(
+                solver
+                    .get_configuration()
+                    .approx_eq(&tests_configuration()[i], 0.01),
+                "test case {}\nconfiguration =\n{}\nexpected =\n{}",
+                i,
+                solver.get_configuration(),
+                tests_configuration()[i]
+            );
         }
     }
 
@@ -256,18 +240,37 @@ mod tests {
     fn train_normal_equation() {
         for i in 0..tests_inputs().len() {
             let mut solver = Solver::<f64>::new();
-            solver.train(&tests_inputs()[i], &tests_outputs()[i], SolveMethod::NormalEquation);
+            solver.train(
+                &tests_inputs()[i],
+                &tests_outputs()[i],
+                SolveMethod::NormalEquation,
+            );
 
-            assert!(solver.get_configuration().approx_eq(&tests_configuration()[i], 0.01), "test case {}\nconfiguration =\n{}\nexpected =\n{}", i, solver.get_configuration(), tests_configuration()[i]);
+            assert!(
+                solver
+                    .get_configuration()
+                    .approx_eq(&tests_configuration()[i], 0.01),
+                "test case {}\nconfiguration =\n{}\nexpected =\n{}",
+                i,
+                solver.get_configuration(),
+                tests_configuration()[i]
+            );
         }
     }
 
     #[test]
     fn run() {
         for i in 0..tests_inputs().len() {
-            let solver = Solver { configuration: Some(tests_configuration()[i].clone()) };
+            let solver = Solver {
+                configuration: Some(tests_configuration()[i].clone()),
+            };
 
-            assert_eq!(solver.run(&tests_inputs()[i]), tests_outputs()[i], "test case {}", i);
+            assert_eq!(
+                solver.run(&tests_inputs()[i]),
+                tests_outputs()[i],
+                "test case {}",
+                i
+            );
         }
     }
 

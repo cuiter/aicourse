@@ -1,36 +1,52 @@
-use crate::matrix::{Matrix, Float};
+use crate::matrix::{Float, Matrix};
 
 /// A logistic regression problem solver.
 /// It needs to be trained before it can make predictions.
 #[derive(Debug, PartialEq, Clone)]
-pub struct Solver<T : Float> {
-    configuration: Option<Matrix<T>>
+pub struct Solver<T: Float> {
+    configuration: Option<Matrix<T>>,
 }
 
 /// Adds an "x0" feature to the left side of the input matrix.
 /// The "x0" feature is always assigned to the constant 1,
 /// so that it can be used as a base offset.
-fn add_zero_feature<T : Float>(inputs: &Matrix<T>) -> Matrix<T> {
+fn add_zero_feature<T: Float>(inputs: &Matrix<T>) -> Matrix<T> {
     Matrix::one(inputs.get_m(), 1).h_concat(inputs)
 }
 
-fn assert_output_is_integer<T : Float>(outputs: &Matrix<T>) {
+fn assert_output_is_integer<T: Float>(outputs: &Matrix<T>) {
     for x in outputs.iter() {
-        assert!(*x == T::zero() || *x == T::from_u8(1).unwrap(), "{} is not equal to 0.0 or 1.0", x);
+        assert!(
+            *x == T::zero() || *x == T::from_u8(1).unwrap(),
+            "{} is not equal to 0.0 or 1.0",
+            x
+        );
     }
 }
 
-pub fn discrete_outputs<T : Float>(outputs: &Matrix<T>) -> Matrix<T> {
-    Matrix::new(outputs.get_m(), outputs.get_n(), outputs.iter()
-                .map(|x| if *x >= T::from_f32(0.5).unwrap()
-                       { T::from_u8(1).unwrap() }
-                       else { T::zero() }).collect())
+pub fn discrete_outputs<T: Float>(outputs: &Matrix<T>) -> Matrix<T> {
+    Matrix::new(
+        outputs.get_m(),
+        outputs.get_n(),
+        outputs
+            .iter()
+            .map(|x| {
+                if *x >= T::from_f32(0.5).unwrap() {
+                    T::from_u8(1).unwrap()
+                } else {
+                    T::zero()
+                }
+            })
+            .collect(),
+    )
 }
 
-impl<T : Float> Solver<T> {
+impl<T: Float> Solver<T> {
     /// Creates a new Solver with an empty configuration.
     pub fn new() -> Solver<T> {
-        Solver { configuration: None }
+        Solver {
+            configuration: None,
+        }
     }
 
     /// Computes the "cost" (mean square error) between the calculated output
@@ -38,12 +54,19 @@ impl<T : Float> Solver<T> {
     fn cost(configuration: &Matrix<T>, n_inputs: &Matrix<T>, correct_outputs: &Matrix<T>) -> T {
         let outputs = Solver::<T>::run_n(configuration, n_inputs);
 
-        let logdiff = Matrix::new(outputs.get_m(), outputs.get_n(),
-                                  outputs
-                                  .iter()
-                                  .zip(correct_outputs.iter())
-                                  .map(|(output, correct_output)| -*correct_output * T::ln(*output) - (T::from_u8(1).unwrap() - *correct_output) * T::ln(T::from_u8(1).unwrap() - *output))
-                                  .collect());
+        let logdiff = Matrix::new(
+            outputs.get_m(),
+            outputs.get_n(),
+            outputs
+                .iter()
+                .zip(correct_outputs.iter())
+                .map(|(output, correct_output)| {
+                    -*correct_output * T::ln(*output)
+                        - (T::from_u8(1).unwrap() - *correct_output)
+                            * T::ln(T::from_u8(1).unwrap() - *output)
+                })
+                .collect(),
+        );
         let costsum = logdiff.sum();
 
         costsum / T::from_u32(n_inputs.get_m() * 2).unwrap()
@@ -91,7 +114,10 @@ impl<T : Float> Solver<T> {
 
     /// Performs gradient descent with feature scaling.
     /// Results in more accurate and quicker convergence.
-    fn train_gradient_descent_feature_scaling(n_inputs: &Matrix<T>, outputs: &Matrix<T>) -> Option<Matrix<T>> {
+    fn train_gradient_descent_feature_scaling(
+        n_inputs: &Matrix<T>,
+        outputs: &Matrix<T>,
+    ) -> Option<Matrix<T>> {
         let mut inputs_scale = Matrix::one(1, n_inputs.get_n());
         for n in 0..n_inputs.get_n() {
             let mut max_value = T::zero();
@@ -185,7 +211,10 @@ impl<T : Float> Solver<T> {
     /// assert!(predicted_outputs.approx_eq(&outputs, 0.1));
     /// ```
     pub fn run(&self, inputs: &Matrix<T>) -> Matrix<T> {
-        assert!(self.configuration != None, "solver needs to be trained first");
+        assert!(
+            self.configuration != None,
+            "solver needs to be trained first"
+        );
         let n_configuration = self.get_configuration();
         assert_eq!(inputs.get_n(), n_configuration.get_m() - 1);
 
@@ -195,63 +224,10 @@ impl<T : Float> Solver<T> {
     }
 }
 
-
-
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    fn tests_inputs() -> Vec<Matrix<f64>> {
-        vec![
-             Matrix::new(7, 2, vec![50.0, 0.0,
-                                    100.0, 199.5,
-                                    100.0, 200.0,
-                                    150.0, 99.5,
-                                    200.0, -0.5,
-                                    200.0, 0.0,
-                                    250.0, 0.0]),
-             Matrix::new(9, 1, vec![50.0,
-                                    100.0,
-                                    200.0,
-                                    490.0,
-                                    500.0,
-                                    600.0,
-                                    700.0,
-                                    800.0,
-                                   -100.0]),
-        ]
-    }
-
-    fn tests_outputs() -> Vec<Matrix<f64>> {
-        vec![
-             Matrix::new(7, 1, vec![0.0,
-                                    0.0,
-                                    1.0,
-                                    0.0,
-                                    0.0,
-                                    1.0,
-                                    1.0]),
-             Matrix::new(9, 1, vec![0.0,
-                                    0.0,
-                                    0.0,
-                                    0.0,
-                                    1.0,
-                                    1.0,
-                                    1.0,
-                                    1.0,
-                                    0.0]),
-        ]
-    }
-
-    fn tests_configuration() -> Vec<Matrix<f64>> {
-        vec![
-             Matrix::new(3, 1, vec![-200.0,
-                                    1.0,
-                                    0.5]),
-             Matrix::new(2, 1, vec![-500.0,
-                                    1.0]),
-        ]
-    }
+    use crate::testdata::logreg::*;
 
     #[test]
     fn train_gradient_descent() {
@@ -264,19 +240,33 @@ mod tests {
             // configuration needs to be normalized before comparing it with the expected
             // configuration.
             let unnormalized_configuration = solver.get_configuration();
-            let configuration_factor: f64 = tests_configuration()[i].iter().next().unwrap() / *unnormalized_configuration.iter().next().unwrap();
+            let configuration_factor: f64 = tests_configuration()[i].iter().next().unwrap()
+                / *unnormalized_configuration.iter().next().unwrap();
             let normalized_configuration = unnormalized_configuration * configuration_factor;
 
-            assert!(normalized_configuration.approx_eq(&tests_configuration()[i], 0.06), "test case {}\nconfiguration =\n{}\nexpected =\n{}", i, normalized_configuration, tests_configuration()[i]);
+            assert!(
+                normalized_configuration.approx_eq(&tests_configuration()[i], 0.06),
+                "test case {}\nconfiguration =\n{}\nexpected =\n{}",
+                i,
+                normalized_configuration,
+                tests_configuration()[i]
+            );
         }
     }
 
     #[test]
     fn run() {
         for i in 0..tests_inputs().len() {
-            let solver = Solver { configuration: Some(tests_configuration()[i].clone()) };
+            let solver = Solver {
+                configuration: Some(tests_configuration()[i].clone()),
+            };
 
-            assert_eq!(discrete_outputs(&solver.run(&tests_inputs()[i])), tests_outputs()[i], "test case {}", i);
+            assert_eq!(
+                discrete_outputs(&solver.run(&tests_inputs()[i])),
+                tests_outputs()[i],
+                "test case {}",
+                i
+            );
         }
     }
 }

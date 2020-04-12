@@ -1,22 +1,28 @@
-use num_traits::{float, cast};
 use core::slice::Iter;
+use num_traits::{cast, float};
+use std::cmp;
 use std::fmt;
 use std::ops;
-use std::cmp;
 
 /// Any floating point type that can be used by Matrix<T>.
-pub trait Float: float::Float + float::FloatConst + cast::FromPrimitive + fmt::Debug + fmt::Display {}
-impl<T: float::Float + float::FloatConst + cast::FromPrimitive + fmt::Debug + fmt::Display> Float for T {}
+pub trait Float:
+    float::Float + float::FloatConst + cast::FromPrimitive + fmt::Debug + fmt::Display
+{
+}
+impl<T: float::Float + float::FloatConst + cast::FromPrimitive + fmt::Debug + fmt::Display> Float
+    for T
+{
+}
 
 /// A linear algebra matrix consisting of real (floating point) numbers.
 #[derive(Debug, PartialEq, Clone)]
-pub struct Matrix<T : Float> {
-    m: u32, // Number of rows
-    n: u32, // Number of columns
-    data: Vec<T> // Data
+pub struct Matrix<T: Float> {
+    m: u32,       // Number of rows
+    n: u32,       // Number of columns
+    data: Vec<T>, // Data
 }
 
-impl<T : Float> Matrix<T> {
+impl<T: Float> Matrix<T> {
     /// Constructs a matrix with the given size and data.
     /// The data is in row-major order.
     pub fn new(m: u32, n: u32, data: Vec<T>) -> Matrix<T> {
@@ -24,7 +30,11 @@ impl<T : Float> Matrix<T> {
         assert!(n > 0);
         assert!(data.len() == (m * n) as usize);
 
-        Matrix { m: m, n: n, data: data }
+        Matrix {
+            m: m,
+            n: n,
+            data: data,
+        }
     }
 
     /// Constructs a matrix with the given size with all its elements set to zero.
@@ -39,7 +49,11 @@ impl<T : Float> Matrix<T> {
 
         let mut data = Vec::with_capacity((m * n) as usize);
         data.resize((m * n) as usize, T::zero());
-        Matrix { m: m, n: n, data: data }
+        Matrix {
+            m: m,
+            n: n,
+            data: data,
+        }
     }
 
     /// Constructs a matrix with the given size with all its elements set to one.
@@ -54,7 +68,11 @@ impl<T : Float> Matrix<T> {
 
         let mut data = Vec::with_capacity((m * n) as usize);
         data.resize((m * n) as usize, T::from_u8(1).unwrap());
-        Matrix { m: m, n: n, data: data }
+        Matrix {
+            m: m,
+            n: n,
+            data: data,
+        }
     }
 
     /// Constructs an identity matrix with the given size.
@@ -102,7 +120,14 @@ impl<T : Float> Matrix<T> {
 
     /// Returns the self.data vector element index given a 2D element index (row, column).
     fn item_index(&self, idx: (u32, u32)) -> usize {
-        assert!(idx.0 < self.m && idx.1 < self.n, "index out of bounds: m={} n={} self.m={}, self.n={}", idx.0, idx.1, self.m, self.n);
+        assert!(
+            idx.0 < self.m && idx.1 < self.n,
+            "index out of bounds: m={} n={} self.m={}, self.n={}",
+            idx.0,
+            idx.1,
+            self.m,
+            self.n
+        );
         (idx.0 * self.n + idx.1) as usize
     }
 
@@ -134,11 +159,10 @@ impl<T : Float> Matrix<T> {
         if self.m != other.get_m() || self.n != other.get_n() {
             false
         } else {
-            !self.iter()
+            !self
+                .iter()
                 .zip(other.iter())
-                .any(|(a, b)| {
-                    a != a || b != b || a < &(*b - precision) || a > &(*b + precision)
-                })
+                .any(|(a, b)| a != a || b != b || a < &(*b - precision) || a > &(*b + precision))
         }
     }
 
@@ -277,7 +301,9 @@ impl<T : Float> Matrix<T> {
         assert!(m_1 < self.m);
         assert!(m_2 < self.m);
 
-        if m_1 == m_2 { return; }
+        if m_1 == m_2 {
+            return;
+        }
 
         let range_1 = ((m_1 * self.n) as usize)..((m_1 * self.n + self.n) as usize);
         let range_2 = ((m_2 * self.n) as usize)..((m_2 * self.n + self.n) as usize);
@@ -298,7 +324,7 @@ impl<T : Float> Matrix<T> {
     /// assert_eq!(matrix.sum(), 45.0);
     /// ```
     pub fn sum(&self) -> T {
-        self.data.iter().fold(T::zero(), |sum, &val| { sum + val })
+        self.data.iter().fold(T::zero(), |sum, &val| sum + val)
     }
 
     /// Returns the associated identity matrix.
@@ -372,13 +398,13 @@ impl<T : Float> Matrix<T> {
                 if row != sub_row {
                     let gauss_factor_2 = result[(sub_row, row)] / result[(row, row)];
                     for sub_col in 0..self.n {
-                        result[(sub_row, sub_col)] = result[(sub_row, sub_col)]
-                            - result[(row, sub_col)] * gauss_factor_2;
+                        result[(sub_row, sub_col)] =
+                            result[(sub_row, sub_col)] - result[(row, sub_col)] * gauss_factor_2;
                     }
                     let jordan_factor = result[(row, sub_row)] / result[(sub_row, sub_row)];
                     for sub_col in 0..self.n {
-                        result[(row, sub_col)] = result[(row, sub_col)]
-                            - result[(sub_row, sub_col)] * jordan_factor;
+                        result[(row, sub_col)] =
+                            result[(row, sub_col)] - result[(sub_row, sub_col)] * jordan_factor;
                     }
                 }
             }
@@ -424,7 +450,10 @@ impl<T : Float> Matrix<T> {
                     }
                     sub_i += 1;
                 }
-                det = det + T::powi(T::from_i8(-1).unwrap(), x as i32) * self[(0, x)] * submatrix.determinant_n(n - 1);
+                det = det
+                    + T::powi(T::from_i8(-1).unwrap(), x as i32)
+                        * self[(0, x)]
+                        * submatrix.determinant_n(n - 1);
             }
 
             det
@@ -494,12 +523,12 @@ impl<T : Float> Matrix<T> {
         match (l_interim, r_interim) {
             (Some(u_l_interim), _) => Some(&u_l_interim * &self.transpose()),
             (_, Some(u_r_interim)) => Some(&self.transpose() * &u_r_interim),
-            _ => None // TODO: Implement SVD
+            _ => None, // TODO: Implement SVD
         }
     }
 }
 
-impl<'a, T : Float> ops::Index<(u32, u32)> for Matrix<T> {
+impl<'a, T: Float> ops::Index<(u32, u32)> for Matrix<T> {
     type Output = T;
 
     /// Returns an element of the matrix indexed by (row, column).
@@ -518,7 +547,7 @@ impl<'a, T : Float> ops::Index<(u32, u32)> for Matrix<T> {
     }
 }
 
-impl<'a, T : Float> ops::IndexMut<(u32, u32)> for Matrix<T> {
+impl<'a, T: Float> ops::IndexMut<(u32, u32)> for Matrix<T> {
     /// Returns a mutable reference of an element inside
     /// the matrix indexed by (row, column).
     /// ```
@@ -538,7 +567,7 @@ impl<'a, T : Float> ops::IndexMut<(u32, u32)> for Matrix<T> {
     }
 }
 
-impl<'a, T : Float> ops::Neg for &'a Matrix<T> {
+impl<'a, T: Float> ops::Neg for &'a Matrix<T> {
     type Output = Matrix<T>;
 
     /// Negates all the elements of the matrix.
@@ -552,12 +581,11 @@ impl<'a, T : Float> ops::Neg for &'a Matrix<T> {
     ///                                                               -7.0, -8.0, -9.0]));
     /// ```
     fn neg(self) -> Matrix<T> {
-        Matrix::new(self.m, self.n,
-                    self.data.iter().map(|a| -*a).collect())
+        Matrix::new(self.m, self.n, self.data.iter().map(|a| -*a).collect())
     }
 }
 
-impl<'a, 'b, T : Float> ops::Add<&'b Matrix<T>> for &'a Matrix<T> {
+impl<'a, 'b, T: Float> ops::Add<&'b Matrix<T>> for &'a Matrix<T> {
     type Output = Matrix<T>;
 
     /// Performs an element-wise addition of both matrices.
@@ -577,15 +605,16 @@ impl<'a, 'b, T : Float> ops::Add<&'b Matrix<T>> for &'a Matrix<T> {
         assert!(self.m == other.get_m());
         assert!(self.n == other.get_n());
 
-        let aiter = self.iter()
+        let aiter = self
+            .iter()
             .zip(other.iter())
             .map(|(x, y)| x.clone() + y.clone());
-        let res_data : Vec<T> = aiter.collect();
+        let res_data: Vec<T> = aiter.collect();
         Matrix::new(self.m, self.n, res_data)
     }
 }
 
-impl<'a, 'b, T : Float> ops::Sub<&'b Matrix<T>> for &'a Matrix<T> {
+impl<'a, 'b, T: Float> ops::Sub<&'b Matrix<T>> for &'a Matrix<T> {
     type Output = Matrix<T>;
 
     /// Performs an element-wise subtraction of both matrices.
@@ -606,7 +635,7 @@ impl<'a, 'b, T : Float> ops::Sub<&'b Matrix<T>> for &'a Matrix<T> {
     }
 }
 
-impl<'a, 'b, T : Float> ops::Mul<&'b Matrix<T>> for &'a Matrix<T> {
+impl<'a, 'b, T: Float> ops::Mul<&'b Matrix<T>> for &'a Matrix<T> {
     type Output = Matrix<T>;
 
     /// Returns the matrix product of two matrices.
@@ -639,8 +668,7 @@ impl<'a, 'b, T : Float> ops::Mul<&'b Matrix<T>> for &'a Matrix<T> {
             for column in 0..other.get_n() {
                 for codependent in 0..self.n {
                     result[(row, column)] = result[(row, column)]
-                        + self[(row, codependent)]
-                          * other[(codependent, column)];
+                        + self[(row, codependent)] * other[(codependent, column)];
                 }
             }
         }
@@ -649,7 +677,7 @@ impl<'a, 'b, T : Float> ops::Mul<&'b Matrix<T>> for &'a Matrix<T> {
     }
 }
 
-impl<'a, T : Float> ops::Mul<T> for &'a Matrix<T> {
+impl<'a, T: Float> ops::Mul<T> for &'a Matrix<T> {
     type Output = Matrix<T>;
 
     /// Multiplies every element of the matrix with the given scalar.
@@ -663,11 +691,15 @@ impl<'a, T : Float> ops::Mul<T> for &'a Matrix<T> {
     ///                                                                    14.0, 16.0, 18.0]));
     /// ```
     fn mul(self, other: T) -> Matrix<T> {
-        Matrix::new(self.m, self.n, self.data.iter().map(|a| *a * other).collect())
+        Matrix::new(
+            self.m,
+            self.n,
+            self.data.iter().map(|a| *a * other).collect(),
+        )
     }
 }
 
-impl<'a, T : Float> ops::Div<T> for &'a Matrix<T> {
+impl<'a, T: Float> ops::Div<T> for &'a Matrix<T> {
     type Output = Matrix<T>;
 
     /// Divides every element of the matrix with the given scalar.
@@ -681,42 +713,45 @@ impl<'a, T : Float> ops::Div<T> for &'a Matrix<T> {
     ///                                                                    3.5, 4.0, 4.5]));
     /// ```
     fn div(self, other: T) -> Matrix<T> {
-        Matrix::new(self.m, self.n, self.data.iter().map(|a| *a / other).collect())
+        Matrix::new(
+            self.m,
+            self.n,
+            self.data.iter().map(|a| *a / other).collect(),
+        )
     }
 }
 
-
-impl<'b, T : Float> ops::AddAssign<&'b Matrix<T>> for Matrix<T> {
+impl<'b, T: Float> ops::AddAssign<&'b Matrix<T>> for Matrix<T> {
     fn add_assign(&mut self, other: &'b Matrix<T>) {
         *self = &*self + other
     }
 }
 
-impl<'b, T : Float> ops::SubAssign<&'b Matrix<T>> for Matrix<T> {
+impl<'b, T: Float> ops::SubAssign<&'b Matrix<T>> for Matrix<T> {
     fn sub_assign(&mut self, other: &'b Matrix<T>) {
         *self = &*self - other
     }
 }
 
-impl<'b, T : Float> ops::MulAssign<&'b Matrix<T>> for Matrix<T> {
+impl<'b, T: Float> ops::MulAssign<&'b Matrix<T>> for Matrix<T> {
     fn mul_assign(&mut self, other: &'b Matrix<T>) {
         *self = &*self * other
     }
 }
 
-impl<T : Float> ops::MulAssign<T> for Matrix<T> {
+impl<T: Float> ops::MulAssign<T> for Matrix<T> {
     fn mul_assign(&mut self, other: T) {
         *self = &*self * other
     }
 }
 
-impl<T : Float> ops::DivAssign<T> for Matrix<T> {
+impl<T: Float> ops::DivAssign<T> for Matrix<T> {
     fn div_assign(&mut self, other: T) {
         *self = &*self / other
     }
 }
 
-impl<T : Float> fmt::Display for Matrix<T> {
+impl<T: Float> fmt::Display for Matrix<T> {
     /// Prints the contents of the matrix in a pretty format.
     /// Every row is printed on a new line.
     /// It is recommended to print a newline before printing the matrix,
@@ -774,7 +809,7 @@ mod tests {
     #[test]
     #[should_panic]
     fn new_wrong_2() {
-        let empty_vec : Vec<f64> = vec![];
+        let empty_vec: Vec<f64> = vec![];
         #[allow(unused_variables)]
         // Size is zero
         let matrix = Matrix::new(3, 0, empty_vec);
@@ -837,59 +872,57 @@ mod tests {
 
     #[test]
     fn sub_matrix() {
-        let matrix_1 = Matrix::new(3, 5, vec![1.0, 2.0, 3.0, 1.0, 0.0,
-                                              4.0, 5.0, 6.0, 0.0, 1.0,
-                                              7.0, 8.0, 9.0, 0.0, 0.0]);
+        let matrix_1 = Matrix::new(
+            3,
+            5,
+            vec![
+                1.0, 2.0, 3.0, 1.0, 0.0, 4.0, 5.0, 6.0, 0.0, 1.0, 7.0, 8.0, 9.0, 0.0, 0.0,
+            ],
+        );
 
-        let expected_matrix = Matrix::new(2, 3, vec![4.0, 5.0, 6.0,
-                                                     7.0, 8.0, 9.0]);
+        let expected_matrix = Matrix::new(2, 3, vec![4.0, 5.0, 6.0, 7.0, 8.0, 9.0]);
 
         assert_eq!(matrix_1.get_sub_matrix(1, 0, 2, 3), expected_matrix);
     }
 
     #[test]
     fn h_concat() {
-        let matrix_1 = Matrix::new(3, 3, vec![1.0, 2.0, 3.0,
-                                              4.0, 5.0, 6.0,
-                                              7.0, 8.0, 9.0]);
-        let matrix_2 = Matrix::new(3, 2, vec![1.0, 0.0,
-                                              0.0, 1.0,
-                                              0.0, 0.0]);
+        let matrix_1 = Matrix::new(3, 3, vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0]);
+        let matrix_2 = Matrix::new(3, 2, vec![1.0, 0.0, 0.0, 1.0, 0.0, 0.0]);
 
-        let expected_matrix = Matrix::new(3, 5, vec![1.0, 2.0, 3.0, 1.0, 0.0,
-                                                     4.0, 5.0, 6.0, 0.0, 1.0,
-                                                     7.0, 8.0, 9.0, 0.0, 0.0]);
+        let expected_matrix = Matrix::new(
+            3,
+            5,
+            vec![
+                1.0, 2.0, 3.0, 1.0, 0.0, 4.0, 5.0, 6.0, 0.0, 1.0, 7.0, 8.0, 9.0, 0.0, 0.0,
+            ],
+        );
 
         assert_eq!(matrix_1.h_concat(&matrix_2), expected_matrix);
     }
 
     #[test]
     fn v_concat() {
-        let matrix_1 = Matrix::new(3, 3, vec![1.0, 2.0, 3.0,
-                                              4.0, 5.0, 6.0,
-                                              7.0, 8.0, 9.0]);
-        let matrix_2 = Matrix::new(2, 3, vec![1.0, 0.0, 0.0,
-                                              0.0, 1.0, 0.0]);
+        let matrix_1 = Matrix::new(3, 3, vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0]);
+        let matrix_2 = Matrix::new(2, 3, vec![1.0, 0.0, 0.0, 0.0, 1.0, 0.0]);
 
-        let expected_matrix = Matrix::new(5, 3, vec![1.0, 2.0, 3.0,
-                                                     4.0, 5.0, 6.0,
-                                                     7.0, 8.0, 9.0,
-                                                     1.0, 0.0, 0.0,
-                                                     0.0, 1.0, 0.0]);
+        let expected_matrix = Matrix::new(
+            5,
+            3,
+            vec![
+                1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.0,
+            ],
+        );
 
         assert_eq!(matrix_1.v_concat(&matrix_2), expected_matrix);
     }
 
     #[test]
     fn swap_rows() {
-        let mut matrix = Matrix::new(3, 3, vec![1.0, 2.0, 3.0,
-                                            4.0, 5.0, 6.0,
-                                            7.0, 8.0, 9.0]);
+        let mut matrix = Matrix::new(3, 3, vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0]);
         matrix.swap_rows(0, 2);
 
-        let expected_matrix = Matrix::new(3, 3, vec![7.0, 8.0, 9.0,
-                                                     4.0, 5.0, 6.0,
-                                                     1.0, 2.0, 3.0]);
+        let expected_matrix = Matrix::new(3, 3, vec![7.0, 8.0, 9.0, 4.0, 5.0, 6.0, 1.0, 2.0, 3.0]);
 
         assert_eq!(matrix, expected_matrix);
     }
@@ -931,19 +964,13 @@ mod tests {
 
     #[test]
     fn mul() {
-        let matrix_1 = Matrix::new(3, 3, vec![1.0, 2.0, 3.0,
-                                              4.0, 5.0, 6.0,
-                                              7.0, 8.0, 9.0]);
-        let matrix_2 = Matrix::new(3, 1, vec![1.0,
-                                              2.0,
-                                              3.0]);
+        let matrix_1 = Matrix::new(3, 3, vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0]);
+        let matrix_2 = Matrix::new(3, 1, vec![1.0, 2.0, 3.0]);
 
         let mut matrix_3 = matrix_1.clone();
         matrix_3 *= &matrix_2;
 
-        let expected_matrix = Matrix::new(3, 1, vec![14.0,
-                                                     32.0,
-                                                     50.0]);
+        let expected_matrix = Matrix::new(3, 1, vec![14.0, 32.0, 50.0]);
 
         assert_eq!(&matrix_1 * &matrix_2, expected_matrix);
         assert_eq!(matrix_3, expected_matrix);
@@ -951,12 +978,8 @@ mod tests {
 
     #[test]
     fn mul_assign() {
-        let matrix_1 = Matrix::new(3, 3, vec![1.0, 2.0, 3.0,
-                                              4.0, 5.0, 6.0,
-                                              7.0, 8.0, 9.0]);
-        let matrix_2 = Matrix::new(3, 3, vec![1.0, 2.0, 3.0,
-                                              4.0, 5.0, 6.0,
-                                              7.0, 8.0, 9.0]);
+        let matrix_1 = Matrix::new(3, 3, vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0]);
+        let matrix_2 = Matrix::new(3, 3, vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0]);
 
         let mut matrix_3 = matrix_1.clone();
         matrix_3 *= &matrix_2;
@@ -966,8 +989,7 @@ mod tests {
 
     #[test]
     fn mul_scalar_assign() {
-        let matrix_1 = Matrix::new(2, 2, vec![1.0, 2.0,
-                                              3.0, 4.0]);
+        let matrix_1 = Matrix::new(2, 2, vec![1.0, 2.0, 3.0, 4.0]);
         let scalar = 2.0;
 
         let mut matrix_2 = matrix_1.clone();
@@ -978,8 +1000,7 @@ mod tests {
 
     #[test]
     fn div_scalar_assign() {
-        let matrix_1 = Matrix::new(2, 2, vec![2.0, 4.0,
-                                              6.0, 8.0]);
+        let matrix_1 = Matrix::new(2, 2, vec![2.0, 4.0, 6.0, 8.0]);
         let scalar = 2.0;
 
         let mut matrix_2 = matrix_1.clone();
@@ -990,28 +1011,43 @@ mod tests {
 
     #[test]
     fn gauss_jordan() {
-        let matrix = Matrix::new(3, 6, vec![1.0, 2.0, 0.0, 1.0, 0.0, 0.0,
-                                            1.0, 0.0, 1.0, 0.0, 1.0, 0.0,
-                                            2.0, 2.0, 2.0, 0.0, 0.0, 1.0]);
+        let matrix = Matrix::new(
+            3,
+            6,
+            vec![
+                1.0, 2.0, 0.0, 1.0, 0.0, 0.0, 1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 2.0, 2.0, 2.0, 0.0,
+                0.0, 1.0,
+            ],
+        );
 
-
-        let expected_matrix = Matrix::new(3, 6, vec![1.0, 0.0, 0.0, 1.0, 2.0, -1.0,
-                                                     0.0, 1.0, 0.0, 0.0, -1.0, 0.5,
-                                                     0.0, 0.0, 1.0, -1.0, -1.0, 1.0]);
+        let expected_matrix = Matrix::new(
+            3,
+            6,
+            vec![
+                1.0, 0.0, 0.0, 1.0, 2.0, -1.0, 0.0, 1.0, 0.0, 0.0, -1.0, 0.5, 0.0, 0.0, 1.0, -1.0,
+                -1.0, 1.0,
+            ],
+        );
 
         assert_eq!(matrix.gauss_jordan(), expected_matrix);
     }
 
     #[test]
     fn inv() {
-        let matrix = Matrix::new(3, 3, vec![1.0, 2.0, 3.0,
-                                            0.0, 1.0, 5.0,
-                                            5.0, 6.0, 0.0]);
+        let matrix = Matrix::new(3, 3, vec![1.0, 2.0, 3.0, 0.0, 1.0, 5.0, 5.0, 6.0, 0.0]);
 
         let result_1 = &matrix * &matrix.inv().unwrap();
         let result_2 = &matrix.inv().unwrap() * &matrix;
 
-        assert!(result_1.approx_eq(&matrix.identity(), 0.001), "result_1 =\n{}", result_1);
-        assert!(result_2.approx_eq(&matrix.identity(), 0.001), "result_2 =\n{}", result_1);
-   }
+        assert!(
+            result_1.approx_eq(&matrix.identity(), 0.001),
+            "result_1 =\n{}",
+            result_1
+        );
+        assert!(
+            result_2.approx_eq(&matrix.identity(), 0.001),
+            "result_2 =\n{}",
+            result_1
+        );
+    }
 }
