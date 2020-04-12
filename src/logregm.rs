@@ -1,27 +1,41 @@
-use crate::matrix::{Matrix, Float};
 use crate::logreg;
+use crate::matrix::{Float, Matrix};
 
 /// A multiple classification (One-vs-all) logistic regression problem solver.
 /// It needs to be trained before it can make predictions.
 #[derive(Debug, PartialEq, Clone)]
-pub struct Solver<T : Float> {
-    solvers: Vec<logreg::Solver<T>>
+pub struct Solver<T: Float> {
+    solvers: Vec<logreg::Solver<T>>,
 }
 
-fn assert_valid_classes<T : Float>(outputs: &Matrix<T>) {
+fn assert_valid_classes<T: Float>(outputs: &Matrix<T>) {
     for x in outputs.iter() {
-        assert!(*x != T::zero() && *x == T::floor(*x), "invalid class: {} is zero or not an integer", x);
+        assert!(
+            *x != T::zero() && *x == T::floor(*x),
+            "invalid class: {} is zero or not an integer",
+            x
+        );
     }
 }
 
-fn match_class<T : Float>(matrix: &Matrix<T>, class: T) -> Matrix<T> {
-    Matrix::new(matrix.get_m(), matrix.get_n(), matrix
-                .iter()
-                .map(|x| if *x == class { T::from_u8(1).unwrap() } else { T::zero() })
-                .collect())
+fn match_class<T: Float>(matrix: &Matrix<T>, class: T) -> Matrix<T> {
+    Matrix::new(
+        matrix.get_m(),
+        matrix.get_n(),
+        matrix
+            .iter()
+            .map(|x| {
+                if *x == class {
+                    T::from_u8(1).unwrap()
+                } else {
+                    T::zero()
+                }
+            })
+            .collect(),
+    )
 }
 
-impl<T : Float> Solver<T> {
+impl<T: Float> Solver<T> {
     /// Creates a new Solver with an empty configuration.
     pub fn new() -> Solver<T> {
         Solver { solvers: vec![] }
@@ -50,7 +64,12 @@ impl<T : Float> Solver<T> {
 
         self.solvers.clear();
 
-        let max_class = outputs.iter().cloned().fold(T::neg_infinity(), T::max).to_u32().unwrap();
+        let max_class = outputs
+            .iter()
+            .cloned()
+            .fold(T::neg_infinity(), T::max)
+            .to_u32()
+            .unwrap();
         let mut success = true;
 
         for i in 0..max_class {
@@ -69,7 +88,10 @@ impl<T : Float> Solver<T> {
     pub fn run_extended(&self, inputs: &Matrix<T>) -> Vec<Matrix<T>> {
         assert!(self.solvers.len() != 0, "solvers need to be trained first");
 
-        self.solvers.iter().map(|solver| solver.run(inputs)).collect()
+        self.solvers
+            .iter()
+            .map(|solver| solver.run(inputs))
+            .collect()
     }
 
     /// Runs a prediction on the given inputs to form desired outputs.
@@ -94,49 +116,36 @@ impl<T : Float> Solver<T> {
     pub fn run(&self, inputs: &Matrix<T>) -> Matrix<T> {
         let results = self.run_extended(inputs);
 
-        Matrix::new(inputs.get_m(), 1, (0..inputs.get_m())
-            .map(|rowidx| results.iter().enumerate()
-                 .map(|(classidx, result)| (classidx as u32 + 1, result[(rowidx, 0)]))
-                 .fold((0u32, T::neg_infinity()),
-                       |(sumidx, sumval), (curidx, curval)|
-                       if sumval >= curval { (sumidx, sumval) }
-                       else { (curidx, curval) } ))
-            .map(|(sumidx, _)| T::from_u32(sumidx).unwrap())
-            .collect())
+        Matrix::new(
+            inputs.get_m(),
+            1,
+            (0..inputs.get_m())
+                .map(|rowidx| {
+                    results
+                        .iter()
+                        .enumerate()
+                        .map(|(classidx, result)| (classidx as u32 + 1, result[(rowidx, 0)]))
+                        .fold(
+                            (0u32, T::neg_infinity()),
+                            |(sumidx, sumval), (curidx, curval)| {
+                                if sumval >= curval {
+                                    (sumidx, sumval)
+                                } else {
+                                    (curidx, curval)
+                                }
+                            },
+                        )
+                })
+                .map(|(sumidx, _)| T::from_u32(sumidx).unwrap())
+                .collect(),
+        )
     }
 }
-
-
 
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    fn tests_inputs() -> Vec<Matrix<f64>> {
-        vec![
-             Matrix::new(4, 2, vec![-5.0, -5.0,
-                                    5.0, -5.0,
-                                    -5.0, 5.0,
-                                    5.0, 5.0]),
-             Matrix::new(4, 2, vec![5.0, 0.0,
-                                    0.0, 5.0,
-                                    -5.0, 0.0,
-                                    0.0, -5.0]),
-        ]
-    }
-
-    fn tests_outputs() -> Vec<Matrix<f64>> {
-        vec![
-             Matrix::new(4, 1, vec![1.0,
-                                    2.0,
-                                    3.0,
-                                    4.0]),
-             Matrix::new(4, 1, vec![1.0,
-                                    2.0,
-                                    3.0,
-                                    4.0]),
-        ]
-    }
+    use crate::testdata::logregm::*;
 
     #[test]
     fn train_and_run() {

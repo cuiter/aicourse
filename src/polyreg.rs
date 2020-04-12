@@ -1,17 +1,17 @@
-use crate::matrix::{Matrix, Float};
 use crate::linreg;
 use crate::linreg::SolveMethod;
+use crate::matrix::{Float, Matrix};
 
 /// A polynomial regression problem solver.
 /// Works by transforming the input and passing it to a linear regression solver.
 /// Needs to be trained before it can make predictions.
 #[derive(Debug, PartialEq, Clone)]
-pub struct Solver<T : Float, F : Fn(&Matrix<T>) -> Matrix<T>> {
+pub struct Solver<T: Float, F: Fn(&Matrix<T>) -> Matrix<T>> {
     solver: Option<linreg::Solver<T>>,
-    row_transform: F
+    row_transform: F,
 }
 
-impl <T : Float, F : Fn(&Matrix<T>) -> Matrix<T>> Solver<T, F> {
+impl<T: Float, F: Fn(&Matrix<T>) -> Matrix<T>> Solver<T, F> {
     /// Runs the transformation function on every row of the inputs.
     fn transform_inputs(row_transform: &F, inputs: &Matrix<T>) -> Matrix<T> {
         let test_row = row_transform(&inputs.get_row(0));
@@ -22,15 +22,17 @@ impl <T : Float, F : Fn(&Matrix<T>) -> Matrix<T>> Solver<T, F> {
             .flatten()
             .collect();
 
-        Matrix::new(inputs.get_m(), test_row.get_n(),
-            data)
+        Matrix::new(inputs.get_m(), test_row.get_n(), data)
     }
 
     /// Creates a solver with an empty configuration and a transformation function.
     /// The transformation function takes a row of inputs and returns a row of transformed inputs.
     /// The size of the returned row always needs to be the same.
     pub fn new(row_transform: F) -> Solver<T, F> {
-        Solver { solver: None, row_transform: row_transform }
+        Solver {
+            solver: None,
+            row_transform: row_transform,
+        }
     }
 
     /// Returns the configuration of the linear regression solver.
@@ -45,7 +47,11 @@ impl <T : Float, F : Fn(&Matrix<T>) -> Matrix<T>> Solver<T, F> {
     /// If the training has not succeeded, the configuration will be unset.
     pub fn train(&mut self, inputs: &Matrix<T>, outputs: &Matrix<T>, method: SolveMethod) -> bool {
         let mut solver = linreg::Solver::<T>::new();
-        let success = solver.train(&Solver::transform_inputs(&self.row_transform, inputs), outputs, method);
+        let success = solver.train(
+            &Solver::transform_inputs(&self.row_transform, inputs),
+            outputs,
+            method,
+        );
         self.solver = if success { Some(solver) } else { None };
         success
     }
@@ -69,93 +75,80 @@ impl <T : Float, F : Fn(&Matrix<T>) -> Matrix<T>> Solver<T, F> {
     /// ```
     pub fn run(&self, inputs: &Matrix<T>) -> Matrix<T> {
         assert!(self.solver != None, "solver needs to be trained first");
-        self.solver.as_ref().unwrap().run(&Solver::transform_inputs(&self.row_transform, inputs))
+        self.solver
+            .as_ref()
+            .unwrap()
+            .run(&Solver::transform_inputs(&self.row_transform, inputs))
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    fn tests_inputs() -> Vec<Matrix<f64>> {
-        vec![
-             Matrix::new(6, 1, vec![-1.0,
-                                    0.0,
-                                    1.0,
-                                    2.0,
-                                    3.0,
-                                    4.0]),
-             Matrix::new(8, 1, vec![0.0,
-                                    1.0,
-                                    4.0,
-                                    25.0,
-                                    36.0,
-                                    49.0,
-                                    81.0,
-                                    144.0])]
-    }
-
-    fn tests_outputs() -> Vec<Matrix<f64>> {
-        vec![
-             Matrix::new(6, 1, vec![100.0,
-                                    100.0,
-                                    102.0,
-                                    106.0,
-                                    112.0,
-                                    120.0]),
-             Matrix::new(8, 1, vec![-100.0,
-                                    -100.0,
-                                    -98.0,
-                                    -80.0,
-                                    -70.0,
-                                    -58.0,
-                                    -28.0,
-                                    32.0])]
-    }
-
-    fn tests_configuration() -> Vec<Matrix<f64>> {
-        vec![
-             Matrix::new(3, 1, vec![100.0,
-                                    1.0,
-                                    1.0]),
-             Matrix::new(3, 1, vec![-100.0,
-                                    1.0,
-                                    -1.0])]
-    }
-
-    fn tests_transformation() -> Vec<fn(&Matrix<f64>) -> Matrix<f64>> {
-        vec![
-            |row| Matrix::new(1, 2, vec![row[(0, 0)], row[(0, 0)] * row[(0, 0)]]),
-            |row| Matrix::new(1, 2, vec![row[(0, 0)], f64::sqrt(row[(0, 0)])])
-        ]
-    }
+    use crate::testdata::polyreg::*;
 
     #[test]
     fn train_gradient_descent() {
         for i in 0..tests_inputs().len() {
-            let mut solver = Solver::<f64, fn(&Matrix<f64>) -> Matrix<f64>>::new(tests_transformation()[i]);
-            solver.train(&tests_inputs()[i], &tests_outputs()[i], SolveMethod::GradientDescent);
+            let mut solver =
+                Solver::<f64, fn(&Matrix<f64>) -> Matrix<f64>>::new(tests_transformation()[i]);
+            solver.train(
+                &tests_inputs()[i],
+                &tests_outputs()[i],
+                SolveMethod::GradientDescent,
+            );
 
-            assert!(solver.get_configuration().approx_eq(&tests_configuration()[i], 0.09), "test case {}\nconfiguration =\n{}\nexpected =\n{}", i, solver.get_configuration(), tests_configuration()[i]);
+            assert!(
+                solver
+                    .get_configuration()
+                    .approx_eq(&tests_configuration()[i], 0.09),
+                "test case {}\nconfiguration =\n{}\nexpected =\n{}",
+                i,
+                solver.get_configuration(),
+                tests_configuration()[i]
+            );
         }
     }
 
     #[test]
     fn train_normal_equation() {
         for i in 0..tests_inputs().len() {
-            let mut solver = Solver::<f64, fn(&Matrix<f64>) -> Matrix<f64>>::new(tests_transformation()[i]);
-            solver.train(&tests_inputs()[i], &tests_outputs()[i], SolveMethod::NormalEquation);
+            let mut solver =
+                Solver::<f64, fn(&Matrix<f64>) -> Matrix<f64>>::new(tests_transformation()[i]);
+            solver.train(
+                &tests_inputs()[i],
+                &tests_outputs()[i],
+                SolveMethod::NormalEquation,
+            );
 
-            assert!(solver.get_configuration().approx_eq(&tests_configuration()[i], 0.01), "test case {}\nconfiguration =\n{}\nexpected =\n{}", i, solver.get_configuration(), tests_configuration()[i]);
+            assert!(
+                solver
+                    .get_configuration()
+                    .approx_eq(&tests_configuration()[i], 0.01),
+                "test case {}\nconfiguration =\n{}\nexpected =\n{}",
+                i,
+                solver.get_configuration(),
+                tests_configuration()[i]
+            );
         }
     }
 
     #[test]
     fn run() {
         for i in 0..tests_inputs().len() {
-            let solver = Solver { solver: Some(linreg::Solver { configuration: Some(tests_configuration()[i].clone()) }), row_transform: tests_transformation()[i] };
+            let solver = Solver {
+                solver: Some(linreg::Solver {
+                    configuration: Some(tests_configuration()[i].clone()),
+                }),
+                row_transform: tests_transformation()[i],
+            };
 
-            assert_eq!(solver.run(&tests_inputs()[i]), tests_outputs()[i], "test case {}", i);
+            assert_eq!(
+                solver.run(&tests_inputs()[i]),
+                tests_outputs()[i],
+                "test case {}",
+                i
+            );
         }
     }
 
