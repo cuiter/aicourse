@@ -45,12 +45,19 @@ impl<T: Float, F: Fn(&Matrix<T>) -> Matrix<T>> Solver<T, F> {
     /// The solve method can either be GradientDescent or NormalEquation.
     /// Returns whether the training has succeeded.
     /// If the training has not succeeded, the configuration will be unset.
-    pub fn train(&mut self, inputs: &Matrix<T>, outputs: &Matrix<T>, method: SolveMethod) -> bool {
+    pub fn train(
+        &mut self,
+        inputs: &Matrix<T>,
+        outputs: &Matrix<T>,
+        method: SolveMethod,
+        regularize_param: Option<T>,
+    ) -> bool {
         let mut solver = linreg::Solver::<T>::new();
         let success = solver.train(
             &Solver::transform_inputs(&self.row_transform, inputs),
             outputs,
             method,
+            regularize_param,
         );
         self.solver = if success { Some(solver) } else { None };
         success
@@ -67,7 +74,7 @@ impl<T: Float, F: Fn(&Matrix<T>) -> Matrix<T>> Solver<T, F> {
     ///
     /// let mut solver = aicourse::polyreg::Solver::new(
     ///     |row| aicourse::matrix::Matrix::new(1, 2, vec![row[(0, 0)], row[(0, 1)] * row[(0, 1)]]));
-    /// solver.train(&inputs, &outputs, aicourse::linreg::SolveMethod::GradientDescent);
+    /// solver.train(&inputs, &outputs, aicourse::linreg::SolveMethod::GradientDescent, None);
     ///
     /// let predicted_outputs = solver.run(&inputs);
     ///
@@ -96,6 +103,7 @@ mod tests {
                 &tests_inputs()[i],
                 &tests_outputs()[i],
                 SolveMethod::GradientDescent,
+                None,
             );
 
             assert!(
@@ -119,6 +127,7 @@ mod tests {
                 &tests_inputs()[i],
                 &tests_outputs()[i],
                 SolveMethod::NormalEquation,
+                None,
             );
 
             assert!(
