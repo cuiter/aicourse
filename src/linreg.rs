@@ -29,18 +29,29 @@ impl<T: Float> Solver<T> {
 
     /// Computes the "cost" (mean square error) between the calculated output
     /// and correct output given a configuration.
-    fn cost(configuration: &Matrix<T>, n_inputs: &Matrix<T>, correct_outputs: &Matrix<T>) -> T {
+    fn cost(configuration: &Matrix<T>, n_inputs: &Matrix<T>, correct_outputs: &Matrix<T>, regularize_param: T) -> T {
         let outputs = Solver::<T>::run_n(configuration, n_inputs);
 
         let diff = &outputs - correct_outputs;
         let diffsquared = &diff.transpose() * &diff;
 
-        diffsquared[(0, 0)] / T::from_u32(n_inputs.get_m() * 2).unwrap()
+        let normal_cost = diffsquared[(0, 0)] / T::from_u32(n_inputs.get_m() * 2).unwrap();
+
+        if regularize_param == T::zero() {
+            normal_cost
+        } else {
+            let configuration_squared_sum = Matrix::new(configuration.get_m() - 1, 1,
+                configuration.get_sub_matrix(1, 0, configuration.get_m() - 1, 1)
+                .iter()
+                .map(|x| *x * *x)
+                .collect()).sum();
+            normal_cost + regularize_param / T::from_u32(n_inputs.get_m() * 2).unwrap() * configuration_squared_sum
+        }
     }
 
     /// Performs gradient descent without feature scaling.
-    /// TODO: Implement regularization as described in:
-    /// https://medium.com/ml-ai-study-group/vectorized-implementation-of-cost-functions-and-gradient-vectors-linear-regression-and-logistic-31c17bca9181
+    /// For mathematical formulas, see:
+    /// https://medium.com/ml-ai-study-group/31c17bca9181
     fn train_gradient_descent(
         n_inputs: &Matrix<T>,
         outputs: &Matrix<T>,
@@ -54,12 +65,20 @@ impl<T: Float> Solver<T> {
 
         loop {
             let hypothesis = Solver::<T>::run_n(&current_configuration, n_inputs);
-            let loss = &hypothesis - outputs;
-            let cost = Solver::<T>::cost(&current_configuration, n_inputs, outputs);
-            let gradient = &(&n_inputs_trans * &loss) / T::from_u32(n_inputs.get_m()).unwrap();
+            let gradient_simple = &(&n_inputs_trans * &(&hypothesis - &outputs)) / T::from_u32(n_inputs.get_m()).unwrap();
+            let gradient = if regularize_param == T::zero() {
+                gradient_simple
+            } else {
+                let mut configuration_without_first = current_configuration.clone();
+                configuration_without_first[(0, 0)] = T::zero();
 
+                &gradient_simple
+                    + &(&configuration_without_first * (learning_rate / T::from_u32(n_inputs.get_m()).unwrap()))
+            };
+
+            let cost = Solver::<T>::cost(&current_configuration, n_inputs, outputs, regularize_param);
             let new_configuration = &current_configuration - &(&gradient * learning_rate);
-            let new_cost = Solver::<T>::cost(&new_configuration, n_inputs, outputs);
+            let new_cost = Solver::<T>::cost(&new_configuration, n_inputs, outputs, regularize_param);
 
             if T::abs(new_cost - cost) < cost_epsilon {
                 break;
@@ -167,10 +186,10 @@ impl<T: Float> Solver<T> {
     ///                                                                      1.0]);
     ///
     /// let mut solver = aicourse::linreg::Solver::new();
-    /// solver.train(&inputs, &outputs, aicourse::linreg::SolveMethod::GradientDescent, None);
+    /// solver.train(&inputs, &outputs, aicourse::linreg::SolveMethod::GradientDescent, 0.0);
     /// assert!(solver.get_configuration().approx_eq(&correct_configuration, 0.1));
     ///
-    /// solver.train(&inputs, &outputs, aicourse::linreg::SolveMethod::NormalEquation, None);
+    /// solver.train(&inputs, &outputs, aicourse::linreg::SolveMethod::NormalEquation, 0.0);
     /// assert!(solver.get_configuration().approx_eq(&correct_configuration, 0.1));
     /// ```
     pub fn train(
@@ -178,26 +197,21 @@ impl<T: Float> Solver<T> {
         inputs: &Matrix<T>,
         outputs: &Matrix<T>,
         method: SolveMethod,
-        regularize_param: Option<T>,
+        regularize_param: T,
     ) -> bool {
         assert_eq!(inputs.get_m(), outputs.get_m());
         assert_eq!(outputs.get_n(), 1);
-
-        let regularize_param_concrete = match regularize_param {
-            Some(n) => n,
-            None => T::zero(),
-        };
 
         let n_inputs = add_zero_feature(inputs);
 
         self.configuration = match method {
             SolveMethod::NormalEquation => {
-                Solver::<T>::train_normal_equation(&n_inputs, outputs, regularize_param_concrete)
+                Solver::<T>::train_normal_equation(&n_inputs, outputs, regularize_param)
             }
             SolveMethod::GradientDescent => Solver::<T>::train_gradient_descent_feature_scaling(
                 &n_inputs,
                 outputs,
-                regularize_param_concrete,
+                regularize_param,
             ),
         };
 
@@ -214,7 +228,7 @@ impl<T: Float> Solver<T> {
     ///                                                       -26.0]);
     ///
     /// let mut solver = aicourse::linreg::Solver::new();
-    /// solver.train(&inputs, &outputs, aicourse::linreg::SolveMethod::GradientDescent, None);
+    /// solver.train(&inputs, &outputs, aicourse::linreg::SolveMethod::GradientDescent, 0.0);
     ///
     /// let predicted_outputs = solver.run(&inputs);
     ///
@@ -247,7 +261,7 @@ mod tests {
                 &tests_inputs()[i],
                 &tests_outputs()[i],
                 SolveMethod::GradientDescent,
-                None,
+                0.0,
             );
 
             assert!(
@@ -270,7 +284,7 @@ mod tests {
                 &tests_inputs()[i],
                 &tests_outputs()[i],
                 SolveMethod::NormalEquation,
-                None,
+                0.0,
             );
 
             assert!(

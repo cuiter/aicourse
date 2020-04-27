@@ -50,7 +50,7 @@ impl<T: Float, F: Fn(&Matrix<T>) -> Matrix<T>> Solver<T, F> {
         inputs: &Matrix<T>,
         outputs: &Matrix<T>,
         method: SolveMethod,
-        regularize_param: Option<T>,
+        regularize_param: T,
     ) -> bool {
         let mut solver = linreg::Solver::<T>::new();
         let success = solver.train(
@@ -74,7 +74,7 @@ impl<T: Float, F: Fn(&Matrix<T>) -> Matrix<T>> Solver<T, F> {
     ///
     /// let mut solver = aicourse::polyreg::Solver::new(
     ///     |row| aicourse::matrix::Matrix::new(1, 2, vec![row[(0, 0)], row[(0, 1)] * row[(0, 1)]]));
-    /// solver.train(&inputs, &outputs, aicourse::linreg::SolveMethod::GradientDescent, None);
+    /// solver.train(&inputs, &outputs, aicourse::linreg::SolveMethod::GradientDescent, 0.0);
     ///
     /// let predicted_outputs = solver.run(&inputs);
     ///
@@ -103,7 +103,7 @@ mod tests {
                 &tests_inputs()[i],
                 &tests_outputs()[i],
                 SolveMethod::GradientDescent,
-                None,
+                0.0,
             );
 
             assert!(
@@ -127,7 +127,7 @@ mod tests {
                 &tests_inputs()[i],
                 &tests_outputs()[i],
                 SolveMethod::NormalEquation,
-                None,
+                0.0,
             );
 
             assert!(
