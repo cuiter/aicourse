@@ -55,9 +55,9 @@ impl<T: Float> Solver<T> {
     ///                                                        2.0]);
     ///
     /// let mut solver = aicourse::logregm::Solver::new();
-    /// solver.train(&inputs, &outputs);
+    /// solver.train(&inputs, &outputs, 0.0);
     /// ```
-    pub fn train(&mut self, inputs: &Matrix<T>, outputs: &Matrix<T>) -> bool {
+    pub fn train(&mut self, inputs: &Matrix<T>, outputs: &Matrix<T>, regularize_param: T) -> bool {
         assert_eq!(inputs.get_m(), outputs.get_m());
         assert_eq!(outputs.get_n(), 1);
         assert_valid_classes(outputs);
@@ -74,7 +74,7 @@ impl<T: Float> Solver<T> {
 
         for i in 0..max_class {
             let mut solver = logreg::Solver::new();
-            success &= solver.train(inputs, &match_class(outputs, T::from_u32(i + 1).unwrap()));
+            success &= solver.train(inputs, &match_class(outputs, T::from_u32(i + 1).unwrap()), regularize_param);
             self.solvers.push(solver);
         }
 
@@ -107,7 +107,7 @@ impl<T: Float> Solver<T> {
     ///                                                        2.0]);
     ///
     /// let mut solver = aicourse::logregm::Solver::new();
-    /// solver.train(&inputs, &outputs);
+    /// solver.train(&inputs, &outputs, 0.0);
     ///
     /// let predicted_outputs = solver.run(&inputs);
     ///
@@ -151,7 +151,7 @@ mod tests {
     fn train_and_run() {
         for i in 0..tests_inputs().len() {
             let mut solver = Solver::<f64>::new();
-            solver.train(&tests_inputs()[i], &tests_outputs()[i]);
+            solver.train(&tests_inputs()[i], &tests_outputs()[i], 0.0);
 
             let outputs = solver.run(&tests_inputs()[i]);
 

@@ -51,7 +51,7 @@ impl<T: Float> Solver<T> {
 
     /// Computes the "cost" (mean square error) between the calculated output
     /// and correct output given a configuration.
-    fn cost(configuration: &Matrix<T>, n_inputs: &Matrix<T>, correct_outputs: &Matrix<T>) -> T {
+    fn cost(configuration: &Matrix<T>, n_inputs: &Matrix<T>, correct_outputs: &Matrix<T>, regularize_param: T) -> T {
         let outputs = Solver::<T>::run_n(configuration, n_inputs);
 
         let logdiff = Matrix::new(
@@ -69,11 +69,24 @@ impl<T: Float> Solver<T> {
         );
         let costsum = logdiff.sum();
 
-        costsum / T::from_u32(n_inputs.get_m() * 2).unwrap()
+        let normal_cost = costsum / T::from_u32(n_inputs.get_m()).unwrap();
+
+        if regularize_param == T::zero() {
+            normal_cost
+        } else {
+            let configuration_squared_sum = Matrix::new(configuration.get_m() - 1, 1,
+                configuration.get_sub_matrix(1, 0, configuration.get_m() - 1, 1)
+                .iter()
+                .map(|x| *x * *x)
+                .collect()).sum();
+            normal_cost + regularize_param / T::from_u32(n_inputs.get_m() * 2).unwrap() * configuration_squared_sum
+        }
     }
 
     /// Performs gradient descent without feature scaling.
-    fn train_gradient_descent(n_inputs: &Matrix<T>, outputs: &Matrix<T>) -> Option<Matrix<T>> {
+    /// For mathematical formulas, see:
+    /// https://medium.com/ml-ai-study-group/31c17bca9181
+    fn train_gradient_descent(n_inputs: &Matrix<T>, outputs: &Matrix<T>, regularize_param: T) -> Option<Matrix<T>> {
         let n_inputs_trans = n_inputs.transpose();
         let mut current_configuration = Matrix::<T>::zero(n_inputs.get_n(), 1);
 
@@ -82,12 +95,24 @@ impl<T: Float> Solver<T> {
 
         loop {
             let hypothesis = Solver::<T>::run_n(&current_configuration, n_inputs);
-            let loss = &hypothesis - outputs;
-            let cost = Solver::<T>::cost(&current_configuration, n_inputs, outputs);
-            let gradient = &(&n_inputs_trans * &loss) / T::from_u32(n_inputs.get_m()).unwrap();
+            let gradient_simple = &(&n_inputs_trans * &(&hypothesis - outputs)) / T::from_u32(n_inputs.get_m()).unwrap();
+            let gradient = if regularize_param == T::zero() {
+                gradient_simple
+            } else {
+                let mut configuration_without_first = current_configuration.clone();
+                configuration_without_first[(0, 0)] = T::zero();
 
+                // TODO: Fix
+                &gradient_simple
+                    - &(&configuration_without_first * (learning_rate / T::from_u32(n_inputs.get_m()).unwrap()))
+            };
+
+            let cost = Solver::<T>::cost(&current_configuration, n_inputs, outputs, regularize_param);
             let new_configuration = &current_configuration - &(&gradient * learning_rate);
-            let new_cost = Solver::<T>::cost(&new_configuration, n_inputs, outputs);
+            let new_cost = Solver::<T>::cost(&new_configuration, n_inputs, outputs, regularize_param);
+
+            dbg!(&cost);
+            dbg!(&new_cost);
 
             if T::abs(new_cost - cost) < cost_epsilon {
                 break;
@@ -117,6 +142,7 @@ impl<T: Float> Solver<T> {
     fn train_gradient_descent_feature_scaling(
         n_inputs: &Matrix<T>,
         outputs: &Matrix<T>,
+        regularize_param: T,
     ) -> Option<Matrix<T>> {
         let mut inputs_scale = Matrix::one(1, n_inputs.get_n());
         for n in 0..n_inputs.get_n() {
@@ -138,7 +164,7 @@ impl<T: Float> Solver<T> {
             }
         }
 
-        let mut configuration = Solver::<T>::train_gradient_descent(&scaled_n_inputs, outputs)?;
+        let mut configuration = Solver::<T>::train_gradient_descent(&scaled_n_inputs, outputs, regularize_param)?;
 
         for m in 0..configuration.get_m() {
             configuration[(m, 0)] = configuration[(m, 0)] * inputs_scale[(0, m)];
@@ -179,9 +205,9 @@ impl<T: Float> Solver<T> {
     ///                                                        1.0]);
     ///
     /// let mut solver = aicourse::logreg::Solver::new();
-    /// solver.train(&inputs, &outputs);
+    /// solver.train(&inputs, &outputs, 0.0);
     /// ```
-    pub fn train(&mut self, inputs: &Matrix<T>, outputs: &Matrix<T>) -> bool {
+    pub fn train(&mut self, inputs: &Matrix<T>, outputs: &Matrix<T>, regularize_param: T) -> bool {
         assert_eq!(inputs.get_m(), outputs.get_m());
         assert_eq!(outputs.get_n(), 1);
         assert_output_is_integer(outputs);
@@ -189,7 +215,7 @@ impl<T: Float> Solver<T> {
         let n_inputs = add_zero_feature(inputs);
 
         self.configuration =
-            Solver::<T>::train_gradient_descent_feature_scaling(&n_inputs, outputs);
+            Solver::<T>::train_gradient_descent_feature_scaling(&n_inputs, outputs, regularize_param);
 
         self.configuration != None
     }
@@ -204,7 +230,7 @@ impl<T: Float> Solver<T> {
     ///                                                        1.0]);
     ///
     /// let mut solver = aicourse::logreg::Solver::new();
-    /// solver.train(&inputs, &outputs);
+    /// solver.train(&inputs, &outputs, 0.0);
     ///
     /// let predicted_outputs = solver.run(&inputs);
     ///
@@ -233,7 +259,7 @@ mod tests {
     fn train_gradient_descent() {
         for i in 0..tests_inputs().len() {
             let mut solver = Solver::<f64>::new();
-            solver.train(&tests_inputs()[i], &tests_outputs()[i]);
+            solver.train(&tests_inputs()[i], &tests_outputs()[i], 0.0);
 
             // Because classification only differentiates between above or below 0, the scaling
             // of the resulting configuration doesn't matter. To compare it, the
