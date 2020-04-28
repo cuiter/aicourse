@@ -32,3 +32,13 @@ accuracy using the datasets in the examples.
 
 The normal equation method can fail on some datasets because singular value
 decomposition (SVD) is not implemented for calculating the pseudo-inverse.
+
+Polynomial regression is implemented by letting the user pass a transformation
+function which transforms the input into the inputs used by the learning
+algorithm.
+
+## Lecture 5-7
+
+Logistic regression in both single-classification and one-vs-all are
+implemented. Regularization is implemented on all methods, though I am not
+certain whether the logistic regression regularization methods are correct.
