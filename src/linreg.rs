@@ -19,6 +19,47 @@ fn add_zero_feature<T: Float>(inputs: &Matrix<T>) -> Matrix<T> {
     Matrix::one(inputs.get_m(), 1).h_concat(inputs)
 }
 
+/// Performs gradient descent with feature scaling.
+/// Results in more accurate and quicker convergence.
+pub fn train_gradient_descent_feature_scaling<T, F>(
+    n_inputs: &Matrix<T>,
+    outputs: &Matrix<T>,
+    regularize_param: T,
+    train_gradient_descent: F,
+) -> Option<Matrix<T>>
+where
+    T: Float,
+    F: Fn(&Matrix<T>, &Matrix<T>, T) -> Option<Matrix<T>>,
+{
+    let mut inputs_scale = Matrix::one(1, n_inputs.get_n());
+    for n in 0..n_inputs.get_n() {
+        let mut max_value = T::zero();
+        for m in 0..n_inputs.get_m() {
+            if T::abs(n_inputs[(m, n)]) > T::abs(max_value) {
+                max_value = n_inputs[(m, n)];
+            }
+        }
+        if max_value != T::zero() {
+            inputs_scale[(0, n)] = T::from_f32(1.0).unwrap() / max_value;
+        }
+    }
+
+    let mut scaled_n_inputs = n_inputs.clone();
+    for n in 0..n_inputs.get_n() {
+        for m in 0..n_inputs.get_m() {
+            scaled_n_inputs[(m, n)] = scaled_n_inputs[(m, n)] * inputs_scale[(0, n)];
+        }
+    }
+
+    let mut configuration = (train_gradient_descent)(&scaled_n_inputs, outputs, regularize_param)?;
+
+    for m in 0..configuration.get_m() {
+        configuration[(m, 0)] = configuration[(m, 0)] * inputs_scale[(0, m)];
+    }
+
+    Some(configuration)
+}
+
 impl<T: Float> Solver<T> {
     /// Creates a new Solver with an empty configuration.
     pub fn new() -> Solver<T> {
@@ -29,7 +70,12 @@ impl<T: Float> Solver<T> {
 
     /// Computes the "cost" (mean square error) between the calculated output
     /// and correct output given a configuration.
-    fn cost(configuration: &Matrix<T>, n_inputs: &Matrix<T>, correct_outputs: &Matrix<T>, regularize_param: T) -> T {
+    fn cost(
+        configuration: &Matrix<T>,
+        n_inputs: &Matrix<T>,
+        correct_outputs: &Matrix<T>,
+        regularize_param: T,
+    ) -> T {
         let outputs = Solver::<T>::run_n(configuration, n_inputs);
 
         let diff = &outputs - correct_outputs;
@@ -40,12 +86,19 @@ impl<T: Float> Solver<T> {
         if regularize_param == T::zero() {
             normal_cost
         } else {
-            let configuration_squared_sum = Matrix::new(configuration.get_m() - 1, 1,
-                configuration.get_sub_matrix(1, 0, configuration.get_m() - 1, 1)
-                .iter()
-                .map(|x| *x * *x)
-                .collect()).sum();
-            normal_cost + regularize_param / T::from_u32(n_inputs.get_m() * 2).unwrap() * configuration_squared_sum
+            let configuration_squared_sum = Matrix::new(
+                configuration.get_m() - 1,
+                1,
+                configuration
+                    .get_sub_matrix(1, 0, configuration.get_m() - 1, 1)
+                    .iter()
+                    .map(|x| *x * *x)
+                    .collect(),
+            )
+            .sum();
+            normal_cost
+                + regularize_param / T::from_u32(n_inputs.get_m() * 2).unwrap()
+                    * configuration_squared_sum
         }
     }
 
@@ -65,7 +118,8 @@ impl<T: Float> Solver<T> {
 
         loop {
             let hypothesis = Solver::<T>::run_n(&current_configuration, n_inputs);
-            let gradient_simple = &(&n_inputs_trans * &(&hypothesis - &outputs)) / T::from_u32(n_inputs.get_m()).unwrap();
+            let gradient_simple = &(&n_inputs_trans * &(&hypothesis - &outputs))
+                / T::from_u32(n_inputs.get_m()).unwrap();
             let gradient = if regularize_param == T::zero() {
                 gradient_simple
             } else {
@@ -73,12 +127,15 @@ impl<T: Float> Solver<T> {
                 configuration_without_first[(0, 0)] = T::zero();
 
                 &gradient_simple
-                    + &(&configuration_without_first * (learning_rate / T::from_u32(n_inputs.get_m()).unwrap()))
+                    + &(&configuration_without_first
+                        * (learning_rate / T::from_u32(n_inputs.get_m()).unwrap()))
             };
 
-            let cost = Solver::<T>::cost(&current_configuration, n_inputs, outputs, regularize_param);
+            let cost =
+                Solver::<T>::cost(&current_configuration, n_inputs, outputs, regularize_param);
             let new_configuration = &current_configuration - &(&gradient * learning_rate);
-            let new_cost = Solver::<T>::cost(&new_configuration, n_inputs, outputs, regularize_param);
+            let new_cost =
+                Solver::<T>::cost(&new_configuration, n_inputs, outputs, regularize_param);
 
             if T::abs(new_cost - cost) < cost_epsilon {
                 break;
@@ -101,43 +158,6 @@ impl<T: Float> Solver<T> {
         }
 
         Some(current_configuration)
-    }
-
-    /// Performs gradient descent with feature scaling.
-    /// Results in more accurate and quicker convergence.
-    fn train_gradient_descent_feature_scaling(
-        n_inputs: &Matrix<T>,
-        outputs: &Matrix<T>,
-        regularize_param: T,
-    ) -> Option<Matrix<T>> {
-        let mut inputs_scale = Matrix::one(1, n_inputs.get_n());
-        for n in 0..n_inputs.get_n() {
-            let mut max_value = T::zero();
-            for m in 0..n_inputs.get_m() {
-                if T::abs(n_inputs[(m, n)]) > T::abs(max_value) {
-                    max_value = n_inputs[(m, n)];
-                }
-            }
-            if max_value != T::zero() {
-                inputs_scale[(0, n)] = T::from_f32(1.0).unwrap() / max_value;
-            }
-        }
-
-        let mut scaled_n_inputs = n_inputs.clone();
-        for n in 0..n_inputs.get_n() {
-            for m in 0..n_inputs.get_m() {
-                scaled_n_inputs[(m, n)] = scaled_n_inputs[(m, n)] * inputs_scale[(0, n)];
-            }
-        }
-
-        let mut configuration =
-            Solver::<T>::train_gradient_descent(&scaled_n_inputs, outputs, regularize_param)?;
-
-        for m in 0..configuration.get_m() {
-            configuration[(m, 0)] = configuration[(m, 0)] * inputs_scale[(0, m)];
-        }
-
-        Some(configuration)
     }
 
     /// Computes an optimal configuration by inverting a matrix.
@@ -208,10 +228,11 @@ impl<T: Float> Solver<T> {
             SolveMethod::NormalEquation => {
                 Solver::<T>::train_normal_equation(&n_inputs, outputs, regularize_param)
             }
-            SolveMethod::GradientDescent => Solver::<T>::train_gradient_descent_feature_scaling(
+            SolveMethod::GradientDescent => train_gradient_descent_feature_scaling(
                 &n_inputs,
                 outputs,
                 regularize_param,
+                Solver::<T>::train_gradient_descent,
             ),
         };
 
