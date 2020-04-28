@@ -74,7 +74,11 @@ impl<T: Float> Solver<T> {
 
         for i in 0..max_class {
             let mut solver = logreg::Solver::new();
-            success &= solver.train(inputs, &match_class(outputs, T::from_u32(i + 1).unwrap()), regularize_param);
+            success &= solver.train(
+                inputs,
+                &match_class(outputs, T::from_u32(i + 1).unwrap()),
+                regularize_param,
+            );
             self.solvers.push(solver);
         }
 
