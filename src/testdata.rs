@@ -1,5 +1,42 @@
 use crate::matrix::{Matrix};
 
+pub mod util {
+    use super::*;
+    pub fn classify_inputs() -> Vec<Matrix<f64>> {
+        vec![
+             Matrix::new(3, 4, vec![1.0, 0.5, 0.8, 0.0,
+                                    0.0, 0.2, 0.1, 0.4,
+                                    0.9, 0.2, 1.0, 1.0]),
+             Matrix::new(4, 4, vec![0.0, 0.1, 0.2, 0.3,
+                                    1.0, 1.0, 1.0, 1.0,
+                                    0.0, 0.0, 0.0, 0.0,
+                                    0.3, 0.5, 0.5, 0.3])]
+    }
+    pub fn classify_outputs() -> Vec<Matrix<f64>> {
+        vec![
+             Matrix::new(3, 1, vec![1.0,
+                                    4.0,
+                                    3.0]),
+             Matrix::new(4, 1, vec![4.0,
+                                    1.0,
+                                    1.0,
+                                    2.0])]
+    }
+    pub fn unclassify_inputs() -> Vec<Matrix<f64>> {
+        classify_outputs()
+    }
+    pub fn unclassify_outputs() -> Vec<Matrix<f64>> {
+        vec![
+             Matrix::new(3, 4, vec![1.0, 0.0, 0.0, 0.0,
+                                    0.0, 0.0, 0.0, 1.0,
+                                    0.0, 0.0, 1.0, 0.0]),
+             Matrix::new(4, 4, vec![0.0, 0.0, 0.0, 1.0,
+                                    1.0, 0.0, 0.0, 0.0,
+                                    1.0, 0.0, 0.0, 0.0,
+                                    0.0, 1.0, 0.0, 0.0])]
+    }
+}
+
 pub mod linreg {
     use super::*;
     pub fn tests_inputs() -> Vec<Matrix<f64>> {
@@ -183,6 +220,35 @@ pub mod polyreg {
         vec![
             |row| Matrix::new(1, 2, vec![row[(0, 0)], row[(0, 0)] * row[(0, 0)]]),
             |row| Matrix::new(1, 2, vec![row[(0, 0)], f64::sqrt(row[(0, 0)])])
+        ]
+    }
+}
+
+pub mod dff_logistic {
+    use super::*;
+    pub fn tests_inputs() -> Vec<Matrix<f32>> {
+        vec![
+             Matrix::new(4, 2, vec![-5.0, -5.0,
+                                    5.0, -5.0,
+                                    -5.0, 5.0,
+                                    5.0, 5.0]),
+             Matrix::new(4, 2, vec![5.0, 0.0,
+                                    0.0, 5.0,
+                                    -5.0, 0.0,
+                                    0.0, -5.0]),
+        ]
+    }
+
+    pub fn tests_outputs() -> Vec<Matrix<f32>> {
+        vec![
+             Matrix::new(4, 1, vec![1.0,
+                                    2.0,
+                                    3.0,
+                                    4.0]),
+             Matrix::new(4, 1, vec![1.0,
+                                    2.0,
+                                    3.0,
+                                    4.0]),
         ]
     }
 }

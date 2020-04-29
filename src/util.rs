@@ -26,9 +26,30 @@ pub fn classify<T: Float>(predictions: &Matrix<T>) -> Matrix<T> {
     result
 }
 
+/// Reverses a classification into a prediction with the class having a
+/// 100% probability and the rest 0%.
+pub fn unclassify<T: Float>(classes: &Matrix<T>) -> Matrix<T> {
+    let mut max_class = T::neg_infinity();
+    for m in 0..classes.get_m() {
+        let class = classes[(m, 0)];
+        assert_eq!(class.floor(), class, "{} is an integer", class);
+        if class > max_class {
+            max_class = class;
+        }
+    }
+
+    let mut result = Matrix::zero(classes.get_m(), max_class.to_u32().unwrap());
+    for m in 0..classes.get_m() {
+        result[(m, classes[(m, 0)].to_u32().unwrap() - 1)] = T::from_u8(1).unwrap();
+    }
+
+    result
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::testdata::util::*;
 
     #[test]
     fn sigmoid_correct() {
@@ -49,12 +70,15 @@ mod tests {
 
     #[test]
     fn classify_correct() {
-        let input = Matrix::new(
-            3,
-            4,
-            vec![1.0, 0.5, 0.8, 0.0, 0.0, 0.2, 0.1, 0.4, 0.9, 0.2, 1.0, 1.0],
-        );
-        let expected_outputs = Matrix::new(3, 1, vec![1.0, 4.0, 3.0]);
-        assert_eq!(classify(&input), expected_outputs);
+        for i in 0..classify_inputs().len() {
+            assert_eq!(classify(&classify_inputs()[i]), classify_outputs()[i], "test case {}", i);
+        }
+    }
+
+    #[test]
+    fn unclassify_correct() {
+        for i in 0..unclassify_inputs().len() {
+            assert_eq!(unclassify(&unclassify_inputs()[i]), unclassify_outputs()[i], "test case {}", i);
+        }
     }
 }
