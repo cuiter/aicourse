@@ -306,6 +306,29 @@ impl<T: Float> Matrix<T> {
         result
     }
 
+    /// Performs an element-wise multiplication of the matrices.
+    /// ```
+    /// let matrix_1 = aicourse::matrix::Matrix::new(2, 3, vec![1.0, 2.0, 3.0,
+    ///                                                         1.0, 2.0, 3.0]);
+    /// let matrix_2 = aicourse::matrix::Matrix::new(2, 3, vec![4.0, 5.0, 6.0,
+    ///                                                         7.0, 8.0, 9.0]);
+    ///
+    /// let res_matrix = matrix_1.elem_mul(&matrix_2);
+    /// assert_eq!(res_matrix, aicourse::matrix::Matrix::new(2, 3, vec![4.0, 10.0, 18.0,
+    ///                                                                 7.0, 16.0, 27.0]));
+    /// ```
+    pub fn elem_mul(&self, other: &Matrix<T>) -> Matrix<T> {
+        assert_eq!(self.m, other.get_m(), "self.m == other.m");
+        assert_eq!(self.n, other.get_n(), "self.n == other.n");
+
+        let aiter = self
+            .iter()
+            .zip(other.iter())
+            .map(|(x, y)| x.clone() * y.clone());
+        let res_data: Vec<T> = aiter.collect();
+        Matrix::new(self.m, self.n, res_data)
+    }
+
     /// Swaps two rows in-place.
     /// ```
     /// let mut matrix = aicourse::matrix::Matrix::new(3, 3, vec![1.0, 2.0, 3.0,
@@ -622,8 +645,8 @@ impl<'a, 'b, T: Float> ops::Add<&'b Matrix<T>> for &'a Matrix<T> {
     ///                                                                            17.0, 18.0, 19.0]));
     /// ```
     fn add(self, other: &'b Matrix<T>) -> Matrix<T> {
-        assert!(self.m == other.get_m());
-        assert!(self.n == other.get_n());
+        assert_eq!(self.m, other.get_m(), "self.m == other.m");
+        assert_eq!(self.n, other.get_n(), "self.n == other.n");
 
         let aiter = self
             .iter()
