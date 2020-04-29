@@ -1,5 +1,5 @@
-use crate::regression::common::{train_gradient_descent_feature_scaling, add_zero_feature};
 use crate::matrix::{Float, Matrix};
+use crate::regression::common::{add_zero_feature, train_gradient_descent_feature_scaling};
 use crate::util::sigmoid;
 
 /// A logistic regression problem solver.
