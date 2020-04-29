@@ -1,4 +1,4 @@
-use crate::linreg::train_gradient_descent_feature_scaling;
+use crate::regression::common::{train_gradient_descent_feature_scaling, add_zero_feature};
 use crate::matrix::{Float, Matrix};
 
 /// A logistic regression problem solver.
@@ -6,13 +6,6 @@ use crate::matrix::{Float, Matrix};
 #[derive(Debug, PartialEq, Clone)]
 pub struct Solver<T: Float> {
     configuration: Option<Matrix<T>>,
-}
-
-/// Adds an "x0" feature to the left side of the input matrix.
-/// The "x0" feature is always assigned to the constant 1,
-/// so that it can be used as a base offset.
-fn add_zero_feature<T: Float>(inputs: &Matrix<T>) -> Matrix<T> {
-    Matrix::one(inputs.get_m(), 1).h_concat(inputs)
 }
 
 fn assert_output_is_integer<T: Float>(outputs: &Matrix<T>) {
@@ -25,7 +18,7 @@ fn assert_output_is_integer<T: Float>(outputs: &Matrix<T>) {
     }
 }
 
-pub fn discrete_outputs<T: Float>(outputs: &Matrix<T>) -> Matrix<T> {
+fn discrete_outputs<T: Float>(outputs: &Matrix<T>) -> Matrix<T> {
     Matrix::new(
         outputs.get_m(),
         outputs.get_n(),
@@ -192,7 +185,7 @@ impl<T: Float> Solver<T> {
     ///                                                        0.0,
     ///                                                        1.0]);
     ///
-    /// let mut solver = aicourse::logreg::Solver::new();
+    /// let mut solver = aicourse::regression::logistic::Solver::new();
     /// solver.train(&inputs, &outputs, 0.0);
     /// ```
     pub fn train(&mut self, inputs: &Matrix<T>, outputs: &Matrix<T>, regularize_param: T) -> bool {
@@ -221,7 +214,7 @@ impl<T: Float> Solver<T> {
     ///                                                        0.0,
     ///                                                        1.0]);
     ///
-    /// let mut solver = aicourse::logreg::Solver::new();
+    /// let mut solver = aicourse::regression::logistic::Solver::new();
     /// solver.train(&inputs, &outputs, 0.0);
     ///
     /// let predicted_outputs = solver.run(&inputs);
@@ -239,6 +232,26 @@ impl<T: Float> Solver<T> {
         let n_inputs = add_zero_feature(inputs);
 
         Solver::<T>::run_n(self.get_configuration(), &n_inputs)
+    }
+
+    /// Runs a prediction on the given inputs to form discrete outputs (either 0.0 or 1.0).
+    /// ```
+    /// let inputs = aicourse::matrix::Matrix::new(3, 1, vec![3.0,
+    ///                                                       9.0,
+    ///                                                      -3.0]);
+    /// let outputs = aicourse::matrix::Matrix::new(3, 1, vec![1.0,
+    ///                                                        0.0,
+    ///                                                        1.0]);
+    ///
+    /// let mut solver = aicourse::regression::logistic::Solver::new();
+    /// solver.train(&inputs, &outputs, 0.0);
+    ///
+    /// let predicted_outputs = solver.run_discrete(&inputs);
+    ///
+    /// assert_eq!(outputs, predicted_outputs);
+    /// ```
+    pub fn run_discrete(&self, inputs: &Matrix<T>) -> Matrix<T> {
+        discrete_outputs(&self.run(inputs))
     }
 }
 
@@ -281,6 +294,22 @@ mod tests {
 
             assert_eq!(
                 discrete_outputs(&solver.run(&tests_inputs()[i])),
+                tests_outputs()[i],
+                "test case {}",
+                i
+            );
+        }
+    }
+
+    #[test]
+    fn run_discrete() {
+        for i in 0..tests_inputs().len() {
+            let solver = Solver {
+                configuration: Some(tests_configuration()[i].clone()),
+            };
+
+            assert_eq!(
+                solver.run_discrete(&tests_inputs()[i]),
                 tests_outputs()[i],
                 "test case {}",
                 i
