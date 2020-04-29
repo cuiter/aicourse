@@ -1,5 +1,6 @@
 use crate::regression::logistic;
 use crate::matrix::{Float, Matrix};
+use crate::util::classify;
 
 /// A multiple classification (One-vs-all) logistic regression problem solver.
 /// It needs to be trained before it can make predictions.
@@ -89,13 +90,20 @@ impl<T: Float> Solver<T> {
     }
 
     /// Runs a prediction on every single-classifier logistic regression solver and collects the results.
-    pub fn run_extended(&self, inputs: &Matrix<T>) -> Vec<Matrix<T>> {
+    pub fn run_extended(&self, inputs: &Matrix<T>) -> Matrix<T> {
         assert!(self.solvers.len() != 0, "solvers need to be trained first");
 
-        self.solvers
+        let results: Vec<Matrix<T>> = self.solvers
             .iter()
             .map(|solver| solver.run(inputs))
-            .collect()
+            .collect();
+
+        let mut result = results[0].clone();
+        for i in 1..results.len() {
+            result = result.h_concat(&results[i]);
+        }
+
+        result
     }
 
     /// Runs a prediction on the given inputs to form desired outputs.
@@ -118,31 +126,7 @@ impl<T: Float> Solver<T> {
     /// assert_eq!(outputs, predicted_outputs);
     /// ```
     pub fn run(&self, inputs: &Matrix<T>) -> Matrix<T> {
-        let results = self.run_extended(inputs);
-
-        Matrix::new(
-            inputs.get_m(),
-            1,
-            (0..inputs.get_m())
-                .map(|rowidx| {
-                    results
-                        .iter()
-                        .enumerate()
-                        .map(|(classidx, result)| (classidx as u32 + 1, result[(rowidx, 0)]))
-                        .fold(
-                            (0u32, T::neg_infinity()),
-                            |(sumidx, sumval), (curidx, curval)| {
-                                if sumval >= curval {
-                                    (sumidx, sumval)
-                                } else {
-                                    (curidx, curval)
-                                }
-                            },
-                        )
-                })
-                .map(|(sumidx, _)| T::from_u32(sumidx).unwrap())
-                .collect(),
-        )
+        classify(&self.run_extended(inputs))
     }
 }
 
