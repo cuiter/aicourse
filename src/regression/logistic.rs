@@ -1,5 +1,6 @@
 use crate::regression::common::{train_gradient_descent_feature_scaling, add_zero_feature};
 use crate::matrix::{Float, Matrix};
+use crate::util::sigmoid;
 
 /// A logistic regression problem solver.
 /// It needs to be trained before it can make predictions.
@@ -157,11 +158,7 @@ impl<T: Float> Solver<T> {
     /// Runs the hypothesis on the inputs (with zero feature added) given the configuration.
     fn run_n(configuration: &Matrix<T>, n_inputs: &Matrix<T>) -> Matrix<T> {
         let hypothesis = (&configuration.transpose() * &n_inputs.transpose()).transpose();
-        let sigmoid_vect = hypothesis
-            .iter()
-            .map(|x| T::from_u8(1).unwrap() / (T::from_u8(1).unwrap() + T::powf(T::E(), -*x)))
-            .collect();
-        Matrix::new(hypothesis.get_m(), hypothesis.get_n(), sigmoid_vect)
+        hypothesis.map(sigmoid)
     }
 
     /// Returns the configuration if it is set (after at least

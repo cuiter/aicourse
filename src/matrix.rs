@@ -148,6 +148,23 @@ impl<T: Float> Matrix<T> {
         self.data.iter()
     }
 
+    /// Runs a function on each element to produce a new matrix.
+    /// ```
+    /// let matrix = aicourse::matrix::Matrix::new(2, 2, vec![1.0, 2.0,
+    ///                                                       3.0, 4.0]);
+    /// let matrix_mapped = matrix.map(|x| x * 2.0);
+    ///
+    /// assert_eq!(matrix_mapped, aicourse::matrix::Matrix::new(2, 2, vec![2.0, 4.0,
+    ///                                                                    6.0, 8.0]));
+    /// ```
+    pub fn map<F>(&self, mapping: F) -> Matrix<T>
+    where F: Fn(T) -> T {
+        Matrix::new(self.get_m(), self.get_n(), self
+                    .iter()
+                    .map(|x| (mapping)(*x))
+                    .collect())
+    }
+
     /// Compares whether two matrices are equal within a given precision.
     /// ```
     /// let matrix_1 = aicourse::matrix::Matrix::new(2, 2, vec![1.0, 2.0, 3.0, 4.0]);
