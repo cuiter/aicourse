@@ -1,11 +1,11 @@
-use crate::logreg;
+use crate::regression::logistic;
 use crate::matrix::{Float, Matrix};
 
 /// A multiple classification (One-vs-all) logistic regression problem solver.
 /// It needs to be trained before it can make predictions.
 #[derive(Debug, PartialEq, Clone)]
 pub struct Solver<T: Float> {
-    solvers: Vec<logreg::Solver<T>>,
+    solvers: Vec<logistic::Solver<T>>,
 }
 
 fn assert_valid_classes<T: Float>(outputs: &Matrix<T>) {
@@ -54,7 +54,7 @@ impl<T: Float> Solver<T> {
     ///                                                        1.0,
     ///                                                        2.0]);
     ///
-    /// let mut solver = aicourse::logregm::Solver::new();
+    /// let mut solver = aicourse::regression::logistic_multi::Solver::new();
     /// solver.train(&inputs, &outputs, 0.0);
     /// ```
     pub fn train(&mut self, inputs: &Matrix<T>, outputs: &Matrix<T>, regularize_param: T) -> bool {
@@ -73,7 +73,7 @@ impl<T: Float> Solver<T> {
         let mut success = true;
 
         for i in 0..max_class {
-            let mut solver = logreg::Solver::new();
+            let mut solver = logistic::Solver::new();
             success &= solver.train(
                 inputs,
                 &match_class(outputs, T::from_u32(i + 1).unwrap()),
@@ -110,7 +110,7 @@ impl<T: Float> Solver<T> {
     ///                                                        1.0,
     ///                                                        2.0]);
     ///
-    /// let mut solver = aicourse::logregm::Solver::new();
+    /// let mut solver = aicourse::regression::logistic_multi::Solver::new();
     /// solver.train(&inputs, &outputs, 0.0);
     ///
     /// let predicted_outputs = solver.run(&inputs);

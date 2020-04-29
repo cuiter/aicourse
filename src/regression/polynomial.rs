@@ -1,5 +1,5 @@
-use crate::linreg;
-use crate::linreg::SolveMethod;
+use crate::regression::linear;
+use crate::regression::common::SolveMethod;
 use crate::matrix::{Float, Matrix};
 
 /// A polynomial regression problem solver.
@@ -7,7 +7,7 @@ use crate::matrix::{Float, Matrix};
 /// Needs to be trained before it can make predictions.
 #[derive(Debug, PartialEq, Clone)]
 pub struct Solver<T: Float, F: Fn(&Matrix<T>) -> Matrix<T>> {
-    solver: Option<linreg::Solver<T>>,
+    solver: Option<linear::Solver<T>>,
     row_transform: F,
 }
 
@@ -52,7 +52,7 @@ impl<T: Float, F: Fn(&Matrix<T>) -> Matrix<T>> Solver<T, F> {
         method: SolveMethod,
         regularize_param: T,
     ) -> bool {
-        let mut solver = linreg::Solver::<T>::new();
+        let mut solver = linear::Solver::<T>::new();
         let success = solver.train(
             &Solver::transform_inputs(&self.row_transform, inputs),
             outputs,
@@ -72,9 +72,9 @@ impl<T: Float, F: Fn(&Matrix<T>) -> Matrix<T>> Solver<T, F> {
     ///                                                        13.0,
     ///                                                        13.0]);
     ///
-    /// let mut solver = aicourse::polyreg::Solver::new(
+    /// let mut solver = aicourse::regression::polynomial::Solver::new(
     ///     |row| aicourse::matrix::Matrix::new(1, 2, vec![row[(0, 0)], row[(0, 1)] * row[(0, 1)]]));
-    /// solver.train(&inputs, &outputs, aicourse::linreg::SolveMethod::GradientDescent, 0.0);
+    /// solver.train(&inputs, &outputs, aicourse::regression::SolveMethod::GradientDescent, 0.0);
     ///
     /// let predicted_outputs = solver.run(&inputs);
     ///
@@ -146,7 +146,7 @@ mod tests {
     fn run() {
         for i in 0..tests_inputs().len() {
             let solver = Solver {
-                solver: Some(linreg::Solver {
+                solver: Some(linear::Solver {
                     configuration: Some(tests_configuration()[i].clone()),
                 }),
                 row_transform: tests_transformation()[i],
