@@ -1,4 +1,4 @@
-use crate::matrix::{Matrix, Float};
+use crate::matrix::{Float, Matrix};
 
 /// The logistic sigmoid function.
 /// If z < 0, then 0 < output < 0.5
@@ -32,22 +32,29 @@ mod tests {
 
     #[test]
     fn sigmoid_correct() {
-        let inputs = [ -1.0, 0.0, 1.0 ];
-        let expected_outputs = [ 0.26894, 0.5, 0.73106 ];
+        let inputs = [-1.0, 0.0, 1.0];
+        let expected_outputs = [0.26894, 0.5, 0.73106];
         for i in 0..inputs.len() {
             let output = sigmoid(inputs[i]);
-            assert!(Matrix::new(1, 1, vec![output]).approx_eq(&Matrix::<f32>::new(1, 1, vec![expected_outputs[i]]), 0.001), "sigmoid({}) = {} == {}", inputs[i], output, expected_outputs[i]);
+            assert!(
+                Matrix::new(1, 1, vec![output])
+                    .approx_eq(&Matrix::<f32>::new(1, 1, vec![expected_outputs[i]]), 0.001),
+                "sigmoid({}) = {} == {}",
+                inputs[i],
+                output,
+                expected_outputs[i]
+            );
         }
     }
 
     #[test]
     fn classify_correct() {
-        let input = Matrix::new(3, 4, vec![ 1.0, 0.5, 0.8, 0.0,
-                                            0.0, 0.2, 0.1, 0.4,
-                                            0.9, 0.2, 1.0, 1.0 ]);
-        let expected_outputs = Matrix::new(3, 1, vec![ 1.0,
-                                                       4.0,
-                                                       3.0 ]);
+        let input = Matrix::new(
+            3,
+            4,
+            vec![1.0, 0.5, 0.8, 0.0, 0.0, 0.2, 0.1, 0.4, 0.9, 0.2, 1.0, 1.0],
+        );
+        let expected_outputs = Matrix::new(3, 1, vec![1.0, 4.0, 3.0]);
         assert_eq!(classify(&input), expected_outputs);
     }
 }

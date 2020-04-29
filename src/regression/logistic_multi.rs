@@ -1,5 +1,5 @@
-use crate::regression::logistic;
 use crate::matrix::{Float, Matrix};
+use crate::regression::logistic;
 use crate::util::classify;
 
 /// A multiple classification (One-vs-all) logistic regression problem solver.
@@ -93,7 +93,8 @@ impl<T: Float> Solver<T> {
     pub fn run_extended(&self, inputs: &Matrix<T>) -> Matrix<T> {
         assert!(self.solvers.len() != 0, "solvers need to be trained first");
 
-        let results: Vec<Matrix<T>> = self.solvers
+        let results: Vec<Matrix<T>> = self
+            .solvers
             .iter()
             .map(|solver| solver.run(inputs))
             .collect();

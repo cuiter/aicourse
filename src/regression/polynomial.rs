@@ -1,6 +1,6 @@
-use crate::regression::linear;
-use crate::regression::common::SolveMethod;
 use crate::matrix::{Float, Matrix};
+use crate::regression::common::SolveMethod;
+use crate::regression::linear;
 
 /// A polynomial regression problem solver.
 /// Works by transforming the input and passing it to a linear regression solver.

@@ -15,7 +15,6 @@ pub fn add_zero_feature<T: Float>(inputs: &Matrix<T>) -> Matrix<T> {
     Matrix::one(inputs.get_m(), 1).h_concat(inputs)
 }
 
-
 /// Performs gradient descent with feature scaling.
 /// Results in more accurate and quicker convergence.
 pub fn train_gradient_descent_feature_scaling<T, F>(

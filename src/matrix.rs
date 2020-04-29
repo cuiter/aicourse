@@ -158,11 +158,14 @@ impl<T: Float> Matrix<T> {
     ///                                                                    6.0, 8.0]));
     /// ```
     pub fn map<F>(&self, mapping: F) -> Matrix<T>
-    where F: Fn(T) -> T {
-        Matrix::new(self.get_m(), self.get_n(), self
-                    .iter()
-                    .map(|x| (mapping)(*x))
-                    .collect())
+    where
+        F: Fn(T) -> T,
+    {
+        Matrix::new(
+            self.get_m(),
+            self.get_n(),
+            self.iter().map(|x| (mapping)(*x)).collect(),
+        )
     }
 
     /// Compares whether two matrices are equal within a given precision.
