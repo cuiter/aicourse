@@ -226,7 +226,7 @@ pub mod polyreg {
 
 pub mod dff_logistic {
     use super::*;
-    pub fn tests_inputs() -> Vec<Matrix<f32>> {
+    pub fn tests_inputs() -> Vec<Matrix<f64>> {
         vec![
              Matrix::new(4, 2, vec![-5.0, -5.0,
                                     5.0, -5.0,
@@ -239,7 +239,7 @@ pub mod dff_logistic {
         ]
     }
 
-    pub fn tests_outputs() -> Vec<Matrix<f32>> {
+    pub fn tests_outputs() -> Vec<Matrix<f64>> {
         vec![
              Matrix::new(4, 1, vec![1.0,
                                     2.0,

@@ -146,7 +146,7 @@ impl<T: Float> NeuralNetwork<T> {
         expected_outputs: &Matrix<T>,
         regularization_factor: T,
     ) -> Vec<Matrix<T>> {
-        let cost_epsilon = T::from_f32(0.0001).unwrap();
+        let cost_epsilon = T::from_f64(0.0001).unwrap();
 
         let mut cost_gradient = self.clone_empty();
 
@@ -171,7 +171,7 @@ impl<T: Float> NeuralNetwork<T> {
                     );
 
                     cost_gradient[(l - 1) as usize][(i, j)] =
-                        (right_cost - left_cost) / (T::from_u8(2).unwrap() * cost_epsilon);
+                        (right_cost - left_cost) / (T::from_f64(2.0).unwrap() * cost_epsilon);
                 }
             }
         }
@@ -186,7 +186,7 @@ impl<T: Float> NeuralNetwork<T> {
         layer: u32,
     ) -> Matrix<T> {
         if layer == self.get_n_layers() {
-            &self.calculate_a(inputs, layer) - &expected_outputs
+            &self.calculate_a(inputs, layer).transpose() - &expected_outputs
         } else {
             let left = self.get_layer_configuration(layer).transpose();
             let right = self.backprop_error(inputs, expected_outputs, layer + 1);
@@ -211,7 +211,7 @@ impl<T: Float> NeuralNetwork<T> {
         for _i in 0..inputs.get_m() {
             for l in 1..self.get_n_layers() {
                 let delta_add = &self.backprop_error(inputs, &expected_outputs, l + 1)
-                    * &self.calculate_a(inputs, l).transpose();
+                    * &self.calculate_a_with_bias(inputs, l).transpose();
 
                 if d.len() < l as usize {
                     d.push(delta_add);
@@ -228,13 +228,8 @@ impl<T: Float> NeuralNetwork<T> {
         if regularization_factor != T::zero() {
             for l in 1..self.get_n_layers() {
                 let layer_configuration = self.get_layer_configuration(l);
-                big_d[(l - 1) as usize] = &big_d[(l - 1) as usize]
-                    + &(&layer_configuration.get_sub_matrix(
-                        0,
-                        1,
-                        layer_configuration.get_m(),
-                        layer_configuration.get_n() - 1,
-                    ) * regularization_factor);
+                big_d[(l - 1) as usize] =
+                    &big_d[(l - 1) as usize] + &(layer_configuration * regularization_factor);
             }
         }
 
@@ -282,7 +277,7 @@ impl<T: Float> NeuralNetwork<T> {
             "number of output classifications equals number of units in last layer"
         );
 
-        let cost_epsilon = T::from_f32(0.0001).unwrap();
+        let cost_epsilon = T::from_f64(0.0001).unwrap();
 
         loop {
             let cost = self.cost(inputs, &expected_outputs, regularization_factor);
@@ -318,56 +313,56 @@ mod tests {
 
     #[test]
     fn new() {
-        let network = NeuralNetwork::<f32>::new_empty(vec![3, 5, 5, 4]);
-        assert_eq!(network.get_configuration()[0], Matrix::<f32>::zero(5, 4));
-        assert_eq!(network.get_configuration()[1], Matrix::<f32>::zero(5, 6));
-        assert_eq!(network.get_configuration()[2], Matrix::<f32>::zero(4, 6));
+        let network = NeuralNetwork::<f64>::new_empty(vec![3, 5, 5, 4]);
+        assert_eq!(network.get_configuration()[0], Matrix::<f64>::zero(5, 4));
+        assert_eq!(network.get_configuration()[1], Matrix::<f64>::zero(5, 6));
+        assert_eq!(network.get_configuration()[2], Matrix::<f64>::zero(4, 6));
     }
 
     #[test]
     #[should_panic]
     fn new_wrong_1() {
-        let network = NeuralNetwork::<f32>::new_empty(vec![3, 5, 5, 0]);
-        assert_eq!(network.get_configuration()[0], Matrix::<f32>::zero(5, 4));
+        let network = NeuralNetwork::<f64>::new_empty(vec![3, 5, 5, 0]);
+        assert_eq!(network.get_configuration()[0], Matrix::<f64>::zero(5, 4));
     }
 
     #[test]
     #[should_panic]
     fn new_wrong_2() {
-        let network = NeuralNetwork::<f32>::new_empty(vec![3, 5, 0, 4]);
-        assert_eq!(network.get_configuration()[0], Matrix::<f32>::zero(5, 4));
+        let network = NeuralNetwork::<f64>::new_empty(vec![3, 5, 0, 4]);
+        assert_eq!(network.get_configuration()[0], Matrix::<f64>::zero(5, 4));
     }
 
     #[test]
     fn get_layer_configuration() {
-        let network = NeuralNetwork::<f32>::new_empty(vec![3, 5, 5, 4]);
+        let network = NeuralNetwork::<f64>::new_empty(vec![3, 5, 5, 4]);
         assert_eq!(
             network.get_layer_configuration(1),
-            &Matrix::<f32>::zero(5, 4)
+            &Matrix::<f64>::zero(5, 4)
         );
         assert_eq!(
             network.get_layer_configuration(2),
-            &Matrix::<f32>::zero(5, 6)
+            &Matrix::<f64>::zero(5, 6)
         );
         assert_eq!(
             network.get_layer_configuration(3),
-            &Matrix::<f32>::zero(4, 6)
+            &Matrix::<f64>::zero(4, 6)
         );
     }
 
     #[test]
     #[should_panic]
     fn get_layer_configuration_wrong() {
-        let network = NeuralNetwork::<f32>::new_empty(vec![3, 5, 5, 4]);
+        let network = NeuralNetwork::<f64>::new_empty(vec![3, 5, 5, 4]);
         assert_eq!(
             network.get_layer_configuration(4),
-            &Matrix::<f32>::zero(4, 6)
+            &Matrix::<f64>::zero(4, 6)
         );
     }
 
     #[test]
     fn get_layer_n_units() {
-        let network = NeuralNetwork::<f32>::new(vec![3, 5, 5, 4]);
+        let network = NeuralNetwork::<f64>::new(vec![3, 5, 5, 4]);
         assert_eq!(network.get_layer_n_units(1), 3);
         assert_eq!(network.get_layer_n_units(2), 5);
         assert_eq!(network.get_layer_n_units(3), 5);
@@ -377,25 +372,25 @@ mod tests {
     #[test]
     #[should_panic]
     fn get_layer_n_units_wrong() {
-        let network = NeuralNetwork::<f32>::new(vec![3, 5, 5, 4]);
+        let network = NeuralNetwork::<f64>::new(vec![3, 5, 5, 4]);
         assert_eq!(network.get_layer_n_units(5), 4);
     }
 
     #[test]
     fn get_n_layers() {
-        let network = NeuralNetwork::<f32>::new(vec![3, 5, 5, 4]);
+        let network = NeuralNetwork::<f64>::new(vec![3, 5, 5, 4]);
         assert_eq!(network.get_n_layers(), 4);
     }
 
     #[test]
     fn get_n_outputs() {
-        let network = NeuralNetwork::<f32>::new(vec![3, 5, 5, 2]);
+        let network = NeuralNetwork::<f64>::new(vec![3, 5, 5, 2]);
         assert_eq!(network.get_n_outputs(), 2);
     }
 
     #[test]
     fn run_extended_empty() {
-        let network = NeuralNetwork::<f32>::new_empty(vec![3, 5, 5, 4]);
+        let network = NeuralNetwork::<f64>::new_empty(vec![3, 5, 5, 4]);
         let inputs = Matrix::new(2, 3, vec![0.0, 0.0, 0.0, 0.0, 0.0, 0.0]);
         assert_eq!(
             network.run_extended(&inputs),
@@ -405,7 +400,7 @@ mod tests {
 
     // #[test]
     // fn train_and_run() {
-    //     let mut network = NeuralNetwork::<f32>::new(vec![2, 5, 5, 4]);
+    //     let mut network = NeuralNetwork::<f64>::new(vec![2, 5, 5, 4]);
     //     for i in 0..tests_inputs().len() {
     //         let inputs = &tests_inputs()[i];
     //         let correct_outputs = &tests_outputs()[i];
@@ -418,7 +413,7 @@ mod tests {
     //
     #[test]
     fn calculate_a() {
-        let network = NeuralNetwork::<f32>::new(vec![2, 5, 5, 4]);
+        let network = NeuralNetwork::<f64>::new(vec![2, 5, 5, 4]);
         for i in 0..tests_inputs().len() {
             let inputs = &tests_inputs()[i];
 
@@ -435,7 +430,7 @@ mod tests {
 
     #[test]
     fn backprop() {
-        let network = NeuralNetwork::<f32>::new(vec![2, 5, 5, 4]);
+        let network = NeuralNetwork::<f64>::new(vec![2, 5, 5, 4]);
         for i in 0..tests_inputs().len() {
             let inputs = &tests_inputs()[i];
             let correct_outputs = &tests_outputs()[i];
@@ -453,7 +448,7 @@ mod tests {
 
     #[test]
     fn cost() {
-        let network = NeuralNetwork::<f32>::new(vec![2, 5, 5, 4]);
+        let network = NeuralNetwork::<f64>::new(vec![2, 5, 5, 4]);
         for i in 0..tests_inputs().len() {
             let inputs = &tests_inputs()[i];
             let correct_outputs = &tests_outputs()[i];
@@ -468,7 +463,7 @@ mod tests {
 
     #[test]
     fn cost_gradient() {
-        let network = NeuralNetwork::<f32>::new(vec![2, 5, 5, 4]);
+        let network = NeuralNetwork::<f64>::new(vec![2, 5, 5, 4]);
         for i in 0..tests_inputs().len() {
             let inputs = &tests_inputs()[i];
             let correct_outputs = &tests_outputs()[i];
@@ -488,7 +483,7 @@ mod tests {
 
     #[test]
     fn delta() {
-        let network = NeuralNetwork::<f32>::new(vec![2, 5, 5, 4]);
+        let network = NeuralNetwork::<f64>::new(vec![2, 5, 5, 4]);
         for i in 0..tests_inputs().len() {
             let inputs = &tests_inputs()[i];
             let correct_outputs = &tests_outputs()[i];
@@ -503,6 +498,27 @@ mod tests {
                         assert!(gradient[(l - 1) as usize][(i, j)].is_finite());
                     }
                 }
+            }
+        }
+    }
+
+    #[test]
+    fn delta_cost_gradient_equal() {
+        let network = NeuralNetwork::<f64>::new(vec![2, 5, 5, 4]);
+        for i in 0..tests_inputs().len() {
+            let inputs = &tests_inputs()[i];
+            let correct_outputs = &tests_outputs()[i];
+
+            let delta = &network.delta(inputs, &unclassify(correct_outputs), 1.0);
+            let cost_gradient = network.cost_gradient(inputs, &unclassify(correct_outputs), 1.0);
+            for l in 1..network.get_n_layers() {
+                assert!(
+                    delta[(l - 1) as usize].approx_eq(&cost_gradient[(l - 1) as usize], 0.0002),
+                    "(layer {}) delta == cost gradient\ndelta = {}\ncost gradient = {}",
+                    l,
+                    &delta[(l - 1) as usize],
+                    &cost_gradient[(l - 1) as usize]
+                );
             }
         }
     }
