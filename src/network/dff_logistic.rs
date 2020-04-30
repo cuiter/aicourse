@@ -186,7 +186,7 @@ impl<T: Float> NeuralNetwork<T> {
         layer: u32,
     ) -> Matrix<T> {
         if layer == self.get_n_layers() {
-            &self.calculate_a(inputs, layer).transpose() - &expected_outputs
+            &self.calculate_a(inputs, layer) - &expected_outputs.transpose()
         } else {
             let left = self.get_layer_configuration(layer).transpose();
             let right = self.backprop_error(inputs, expected_outputs, layer + 1);
@@ -228,8 +228,9 @@ impl<T: Float> NeuralNetwork<T> {
         if regularization_factor != T::zero() {
             for l in 1..self.get_n_layers() {
                 let layer_configuration = self.get_layer_configuration(l);
-                big_d[(l - 1) as usize] =
-                    &big_d[(l - 1) as usize] + &(layer_configuration * regularization_factor);
+                big_d[(l - 1) as usize] = &big_d[(l - 1) as usize]
+                    // TODO: remove bias units
+                    + &(layer_configuration * regularization_factor);
             }
         }
 
@@ -504,13 +505,17 @@ mod tests {
 
     #[test]
     fn delta_cost_gradient_equal() {
+        // TODO: Fix incorrect calculation.
+        // TODO: Fix incorrect regularization.
+        // It seems to be exactly that delta == cost_gradient * (2 - 1 / m)
+
         let network = NeuralNetwork::<f64>::new(vec![2, 5, 5, 4]);
         for i in 0..tests_inputs().len() {
             let inputs = &tests_inputs()[i];
             let correct_outputs = &tests_outputs()[i];
 
-            let delta = &network.delta(inputs, &unclassify(correct_outputs), 1.0);
-            let cost_gradient = network.cost_gradient(inputs, &unclassify(correct_outputs), 1.0);
+            let delta = &network.delta(inputs, &unclassify(correct_outputs), 0.0);
+            let cost_gradient = network.cost_gradient(inputs, &unclassify(correct_outputs), 0.0);
             for l in 1..network.get_n_layers() {
                 assert!(
                     delta[(l - 1) as usize].approx_eq(&cost_gradient[(l - 1) as usize], 0.0002),
