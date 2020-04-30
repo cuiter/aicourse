@@ -186,6 +186,22 @@ impl<T: Float> Matrix<T> {
         }
     }
 
+    /// Returns the matrix with the first element set to zero.
+    /// ```
+    /// let matrix = aicourse::matrix::Matrix::new(3, 3, vec![1.0, 2.0, 3.0,
+    ///                                                       4.0, 5.0, 6.0,
+    ///                                                       7.0, 8.0, 9.0]);
+    ///
+    /// assert_eq!(matrix.with_first_zero(), aicourse::matrix::Matrix::new(3, 3, vec![0.0, 2.0, 3.0,
+    ///                                                                               4.0, 5.0, 6.0,
+    ///                                                                               7.0, 8.0, 9.0]));
+    /// ```
+    pub fn with_first_zero(&self) -> Matrix<T> {
+        let mut result = Matrix::new(self.get_m(), self.get_n(), self.data.clone());
+        result[(0, 0)] = T::zero();
+        result
+    }
+
     /// Extracts a part of the matrix, starting at (start_m, start_n) with size (m, n).
     /// ```
     /// let matrix = aicourse::matrix::Matrix::new(3, 3, vec![1.0, 2.0, 3.0,
