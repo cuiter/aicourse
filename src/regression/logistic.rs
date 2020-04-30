@@ -111,8 +111,7 @@ impl<T: Float> Solver<T> {
             let gradient = if regularize_param == T::zero() {
                 gradient_simple
             } else {
-                let mut configuration_without_first = current_configuration.clone();
-                configuration_without_first[(0, 0)] = T::zero();
+                let configuration_without_first = current_configuration.with_first_zero();
 
                 // NOTE: I have no idea whether to add or subtract the regularization product.
                 // In https://www.youtube.com/watch?v=IXPgm1e0IOo&t=6m40s it is a subtraction,
@@ -128,9 +127,6 @@ impl<T: Float> Solver<T> {
             let new_configuration = &current_configuration - &(&gradient * learning_rate);
             let new_cost =
                 Solver::<T>::cost(&new_configuration, n_inputs, outputs, regularize_param);
-
-            dbg!(&cost);
-            dbg!(&new_cost);
 
             if T::abs(new_cost - cost) < cost_epsilon {
                 break;
