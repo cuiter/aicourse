@@ -71,14 +71,24 @@ mod tests {
     #[test]
     fn classify_correct() {
         for i in 0..classify_inputs().len() {
-            assert_eq!(classify(&classify_inputs()[i]), classify_outputs()[i], "test case {}", i);
+            assert_eq!(
+                classify(&classify_inputs()[i]),
+                classify_outputs()[i],
+                "test case {}",
+                i
+            );
         }
     }
 
     #[test]
     fn unclassify_correct() {
         for i in 0..unclassify_inputs().len() {
-            assert_eq!(unclassify(&unclassify_inputs()[i]), unclassify_outputs()[i], "test case {}", i);
+            assert_eq!(
+                unclassify(&unclassify_inputs()[i]),
+                unclassify_outputs()[i],
+                "test case {}",
+                i
+            );
         }
     }
 }
