@@ -1,6 +1,6 @@
 use crate::matrix::{Float, Matrix};
 use crate::regression::common::add_zero_feature;
-use crate::util::{classify, unclassify, sigmoid};
+use crate::util::{classify, sigmoid, unclassify};
 
 /// A deep feed-forward logistic neural network that acts as a classifier.
 /// It can take arbitrary many inputs and produce arbitrary many different classifications.
@@ -69,12 +69,14 @@ impl<T: Float> NeuralNetwork<T> {
     fn cost(&self, inputs: &Matrix<T>, correct_outputs: &Matrix<T>, regularization_factor: T) -> T {
         let mut error_sum = T::zero();
 
-        let hypothesis = self.run(inputs);
+        let hypothesis = self.run_extended(inputs);
         let one = T::from_u8(1).unwrap();
 
         for i in 0..inputs.get_m() {
             for k in 0..correct_outputs.get_n() {
-                error_sum = error_sum + correct_outputs[(i, k)] * T::ln(hypothesis[(i, k)]) + (one - correct_outputs[(i, k)]) * T::ln(one - hypothesis[(i, k)]);
+                error_sum = error_sum
+                    + correct_outputs[(i, k)] * T::ln(hypothesis[(i, k)])
+                    + (one - correct_outputs[(i, k)]) * T::ln(one - hypothesis[(i, k)]);
             }
         }
 
@@ -83,7 +85,8 @@ impl<T: Float> NeuralNetwork<T> {
         if regularization_factor == T::zero() {
             normal_cost
         } else {
-            let configuration_squared_sum: T = self.configuration
+            let configuration_squared_sum: T = self
+                .configuration
                 .iter()
                 .map(|configuration_layer| configuration_layer.iter())
                 .flatten()
@@ -91,31 +94,58 @@ impl<T: Float> NeuralNetwork<T> {
                 .fold(T::zero(), |sum, val| sum + val);
 
             normal_cost
-              + (regularization_factor / T::from_u32(inputs.get_m() * 2).unwrap())
-                * configuration_squared_sum
+                + (regularization_factor / T::from_u32(inputs.get_m() * 2).unwrap())
+                    * configuration_squared_sum
         }
     }
 
-    fn backprop_error(&self, inputs: &Matrix<T>, expected_outputs: &Matrix<T>, layer: u32) -> Matrix<T> {
+    fn backprop_error(
+        &self,
+        inputs: &Matrix<T>,
+        expected_outputs: &Matrix<T>,
+        layer: u32,
+    ) -> Matrix<T> {
         if layer == self.get_n_layers() {
             &self.calculate_a(inputs, layer) - expected_outputs
         } else {
-            let first_half = &self.get_layer_configuration(layer).transpose() * &self.backprop_error(inputs, expected_outputs, layer + 1);
+            let first_half = &self.get_layer_configuration(layer).transpose()
+                * &self.backprop_error(inputs, expected_outputs, layer + 1);
             let a = self.calculate_a(inputs, layer);
-            let a_one = Matrix::one(1, a.get_n()).v_concat(&a);
-            let second_half = a_one.elem_mul(&(&Matrix::<T>::one(a_one.get_m(), a_one.get_n()) - &a_one));
+            let second_half = a.elem_mul(&(&Matrix::<T>::one(a.get_m(), a.get_n()) - &a));
 
+            dbg!(
+                first_half.get_m(),
+                first_half.get_n(),
+                second_half.get_m(),
+                second_half.get_n()
+            );
             first_half.elem_mul(&second_half)
         }
     }
 
-    pub fn train(&mut self, inputs: &Matrix<T>, expected_output_classes: &Matrix<T>, regularization_factor: T) {
+    pub fn train(
+        &mut self,
+        inputs: &Matrix<T>,
+        expected_output_classes: &Matrix<T>,
+        regularization_factor: T,
+    ) {
         let expected_outputs = unclassify(expected_output_classes);
 
-        assert_eq!(inputs.get_m(), expected_outputs.get_m(), "number of inputs equals number of outputs");
-        assert_eq!(inputs.get_n(), self.get_layer_n_units(1), "number of input features equals number of units in first layer");
-        assert_eq!(expected_outputs.get_n(), self.get_n_outputs(), "number of output classifications equals number of units in last layer");
-
+        assert_eq!(
+            inputs.get_m(),
+            expected_outputs.get_m(),
+            "number of inputs equals number of outputs"
+        );
+        assert_eq!(
+            inputs.get_n(),
+            self.get_layer_n_units(1),
+            "number of input features equals number of units in first layer"
+        );
+        assert_eq!(
+            expected_outputs.get_n(),
+            self.get_n_outputs(),
+            "number of output classifications equals number of units in last layer"
+        );
     }
 
     /// Runs the neural network model on the inputs and returns
@@ -216,14 +246,10 @@ mod tests {
     #[test]
     fn run_extended_empty() {
         let network = NeuralNetwork::<f32>::new(vec![3, 5, 5, 4]);
-        let inputs = Matrix::new(2, 3, vec![0.0, 0.0, 0.0,
-                                            0.0, 0.0, 0.0]);
+        let inputs = Matrix::new(2, 3, vec![0.0, 0.0, 0.0, 0.0, 0.0, 0.0]);
         assert_eq!(
             network.run_extended(&inputs),
-            Matrix::new(2, 4, vec![0.5, 0.5,
-                                   0.5, 0.5,
-                                   0.5, 0.5,
-                                   0.5, 0.5])
+            Matrix::new(2, 4, vec![0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5])
         );
     }
 
@@ -240,6 +266,7 @@ mod tests {
         }
     }
 
+    /*
     #[test]
     fn backprop() {
         let mut network = NeuralNetwork::<f32>::new(vec![2, 5, 5, 4]);
@@ -250,6 +277,23 @@ mod tests {
 
             let error = network.backprop_error(inputs, &unclassify(correct_outputs), 2);
             assert_eq!(error, Matrix::zero(inputs.get_m(), 1));
+        }
+    }
+    */
+
+    #[test]
+    fn cost() {
+        let mut network = NeuralNetwork::<f32>::new(vec![2, 5, 5, 4]);
+        for i in 0..tests_inputs().len() {
+            let inputs = &tests_inputs()[i];
+            let correct_outputs = &tests_outputs()[i];
+            network.train(inputs, correct_outputs, 0.0);
+
+            let n_cost = network.cost(inputs, &unclassify(correct_outputs), 0.0);
+            assert!(
+                n_cost.is_finite() && n_cost >= 0.0,
+                "cost is finite and positive"
+            );
         }
     }
 }
