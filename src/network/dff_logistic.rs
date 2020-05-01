@@ -3,6 +3,12 @@ use crate::matrix::{Float, Matrix};
 use crate::util::{classify, sigmoid, unclassify};
 use rand::Rng;
 
+#[derive(Copy, Clone)]
+enum CostMethod {
+    CostGradient,
+    Delta
+}
+
 /// A deep feed-forward logistic neural network that acts as a classifier.
 /// It can take arbitrary many inputs and produce arbitrary many different classifications.
 /// It needs to be trained before it can produce useful results.
@@ -101,6 +107,29 @@ impl<T: Float> NeuralNetwork<T> {
         Matrix::one(1, a.get_n()).v_concat(&a)
     }
 
+    fn regularization_cost(
+        &self,
+        inputs_m: u32,
+        regularization_factor: T
+    ) -> T {
+        if regularization_factor == T::zero() {
+            T::zero()
+        } else {
+            let configuration_without_bias: Vec<Matrix<T>> = self.configuration
+                .iter()
+                .map(|conf| conf.get_sub_matrix(0, 1, conf.get_m(), conf.get_n() - 1))
+                .collect();
+            let configuration_squared_sum: T = configuration_without_bias
+                .iter()
+                .map(|configuration_layer| configuration_layer.iter())
+                .flatten()
+                .map(|&x| x * x)
+                .fold(T::zero(), |sum, val| sum + val);
+            (regularization_factor / T::from_u32(inputs_m * 2).unwrap())
+                    * configuration_squared_sum
+        }
+    }
+
     /// See https://www.youtube.com/watch?v=0twSSFZN9Mc&t=3m44s
     fn cost(
         &self,
@@ -123,21 +152,7 @@ impl<T: Float> NeuralNetwork<T> {
 
         let normal_cost = (-one / T::from_u32(inputs.get_m()).unwrap()) * error_sum;
 
-        if regularization_factor == T::zero() {
-            normal_cost
-        } else {
-            let configuration_squared_sum: T = self
-                .configuration
-                .iter()
-                .map(|configuration_layer| configuration_layer.iter())
-                .flatten()
-                .map(|&x| x * x)
-                .fold(T::zero(), |sum, val| sum + val);
-
-            normal_cost
-                + (regularization_factor / T::from_u32(inputs.get_m() * 2).unwrap())
-                    * configuration_squared_sum
-        }
+        normal_cost + self.regularization_cost(inputs.get_m(), regularization_factor)
     }
 
     fn cost_gradient(
@@ -223,14 +238,17 @@ impl<T: Float> NeuralNetwork<T> {
 
         let mut big_d: Vec<Matrix<T>> = d
             .iter()
-            .map(|matrix| matrix / T::from_u32(inputs.get_m()).unwrap())
+            // TODO: Find out why this has to be d / (2m - 1) instead of d / m
+            .map(|matrix| matrix / T::from_u32(2 * inputs.get_m() - 1).unwrap())
             .collect();
         if regularization_factor != T::zero() {
             for l in 1..self.get_n_layers() {
                 let layer_configuration = self.get_layer_configuration(l);
+                let layer_configuration_without_bias =
+                    Matrix::zero(layer_configuration.get_m(), 1).h_concat(
+                    &layer_configuration.get_sub_matrix(0, 1, layer_configuration.get_m(), layer_configuration.get_n() - 1));
                 big_d[(l - 1) as usize] = &big_d[(l - 1) as usize]
-                    // TODO: remove bias units
-                    + &(layer_configuration * regularization_factor);
+                    + &(&layer_configuration_without_bias * regularization_factor);
             }
         }
 
@@ -242,14 +260,20 @@ impl<T: Float> NeuralNetwork<T> {
         inputs: &Matrix<T>,
         expected_outputs: &Matrix<T>,
         regularization_factor: T,
+        learning_rate: T,
+        method: CostMethod
     ) -> NeuralNetwork<T> {
-        let d = self.delta(inputs, expected_outputs, regularization_factor);
+        let d = match method {
+            CostMethod::CostGradient => self.delta(inputs, expected_outputs, regularization_factor),
+            CostMethod::Delta => self.delta(inputs, expected_outputs, regularization_factor)
+        };
+
         let new_configuration = self
             .configuration
             .iter()
             .zip(d.iter())
-            .map(|(m1, m2)| m1 + m2)
-            .collect();;
+            .map(|(m1, m2)| m1 - &(m2 * learning_rate))
+            .collect();
 
         NeuralNetwork::from_configuration(new_configuration)
     }
@@ -259,6 +283,7 @@ impl<T: Float> NeuralNetwork<T> {
         inputs: &Matrix<T>,
         expected_output_classes: &Matrix<T>,
         regularization_factor: T,
+        method: CostMethod
     ) {
         let expected_outputs = unclassify(expected_output_classes);
 
@@ -279,17 +304,36 @@ impl<T: Float> NeuralNetwork<T> {
         );
 
         let cost_epsilon = T::from_f64(0.0001).unwrap();
+        let mut learning_rate = T::from_f32(1.0).unwrap();
 
         loop {
             let cost = self.cost(inputs, &expected_outputs, regularization_factor);
 
-            let new_network = self.descend(inputs, &expected_outputs, regularization_factor);
+            let new_network = self.descend(inputs, &expected_outputs, regularization_factor, learning_rate, method);
             let new_cost = new_network.cost(inputs, &expected_outputs, regularization_factor);
 
-            self.configuration = new_network.get_configuration().clone();
+            dbg!(cost);
+            dbg!(new_cost);
+            dbg!(learning_rate);
+            dbg!(new_network.get_layer_configuration(new_network.get_n_layers() - 1));
 
             if T::abs(new_cost - cost) < cost_epsilon {
                 break;
+            }
+
+            if new_cost < cost {
+                // Heading in the right direction.
+                // After leaving the "top" of a parabola, it is usually safe
+                // to speed up the learning rate.
+                learning_rate = learning_rate * T::from_f32(1.1).unwrap();
+                self.configuration = new_network.get_configuration().clone();
+            } else {
+                // If the new cost is higher than the previous cost,
+                // the learning rate is too high. This makes the algorithm jump
+                // over the perfect result into the wrong direction.
+                // In this case, keep the old configuration and decrease the
+                // learning rate significantly.
+                learning_rate = learning_rate * T::from_f32(0.5).unwrap();
             }
         }
     }
@@ -303,7 +347,9 @@ impl<T: Float> NeuralNetwork<T> {
     /// Runs the neural network model on the inputs and returns
     /// the classifications with the highest probability.
     pub fn run(&self, inputs: &Matrix<T>) -> Matrix<T> {
-        classify(&self.run_extended(inputs))
+        let results = self.run_extended(inputs);
+        dbg!(&results);
+        classify(&results)
     }
 }
 
@@ -399,19 +445,20 @@ mod tests {
         );
     }
 
-    // #[test]
-    // fn train_and_run() {
-    //     let mut network = NeuralNetwork::<f64>::new(vec![2, 5, 5, 4]);
-    //     for i in 0..tests_inputs().len() {
-    //         let inputs = &tests_inputs()[i];
-    //         let correct_outputs = &tests_outputs()[i];
-    //         network.train(inputs, correct_outputs, 0.0);
+     #[test]
+     fn train_and_run() {
+         // TODO: Fix multi hidden layer network
+         let mut network = NeuralNetwork::<f64>::new(vec![2, 5, 4]);
+         for i in 0..tests_inputs().len() {
+             let inputs = &tests_inputs()[i];
+             let correct_outputs = &tests_outputs()[i];
+             network.train(inputs, correct_outputs, 0.0005, CostMethod::Delta);
 
-    //         let outputs = network.run(inputs);
-    //         assert_eq!(&outputs, correct_outputs);
-    //     }
-    // }
-    //
+             let outputs = network.run(inputs);
+             assert_eq!(&outputs, correct_outputs);
+         }
+     }
+
     #[test]
     fn calculate_a() {
         let network = NeuralNetwork::<f64>::new(vec![2, 5, 5, 4]);
@@ -491,8 +538,6 @@ mod tests {
 
             let gradient = network.delta(inputs, &unclassify(correct_outputs), 0.0);
             assert_eq!(gradient.len(), network.get_n_layers() as usize - 1);
-            dbg!(&gradient);
-            dbg!(&network.cost_gradient(inputs, &unclassify(correct_outputs), 0.0));
             for l in 1..network.get_n_layers() {
                 for i in 0..network.get_layer_n_units(l + 1) {
                     for j in 0..network.get_layer_n_units(l) + 1 {
@@ -505,10 +550,6 @@ mod tests {
 
     #[test]
     fn delta_cost_gradient_equal() {
-        // TODO: Fix incorrect calculation.
-        // TODO: Fix incorrect regularization.
-        // It seems to be exactly that delta == cost_gradient * (2 - 1 / m)
-
         let network = NeuralNetwork::<f64>::new(vec![2, 5, 5, 4]);
         for i in 0..tests_inputs().len() {
             let inputs = &tests_inputs()[i];
