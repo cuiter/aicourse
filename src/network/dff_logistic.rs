@@ -6,7 +6,7 @@ use rand::Rng;
 #[derive(Copy, Clone)]
 enum CostMethod {
     CostGradient,
-    Delta
+    Delta,
 }
 
 /// A deep feed-forward logistic neural network that acts as a classifier.
@@ -107,15 +107,12 @@ impl<T: Float> NeuralNetwork<T> {
         Matrix::one(1, a.get_n()).v_concat(&a)
     }
 
-    fn regularization_cost(
-        &self,
-        inputs_m: u32,
-        regularization_factor: T
-    ) -> T {
+    fn regularization_cost(&self, inputs_m: u32, regularization_factor: T) -> T {
         if regularization_factor == T::zero() {
             T::zero()
         } else {
-            let configuration_without_bias: Vec<Matrix<T>> = self.configuration
+            let configuration_without_bias: Vec<Matrix<T>> = self
+                .configuration
                 .iter()
                 .map(|conf| conf.get_sub_matrix(0, 1, conf.get_m(), conf.get_n() - 1))
                 .collect();
@@ -125,8 +122,7 @@ impl<T: Float> NeuralNetwork<T> {
                 .flatten()
                 .map(|&x| x * x)
                 .fold(T::zero(), |sum, val| sum + val);
-            (regularization_factor / T::from_u32(inputs_m * 2).unwrap())
-                    * configuration_squared_sum
+            (regularization_factor / T::from_u32(inputs_m * 2).unwrap()) * configuration_squared_sum
         }
     }
 
@@ -244,9 +240,13 @@ impl<T: Float> NeuralNetwork<T> {
         if regularization_factor != T::zero() {
             for l in 1..self.get_n_layers() {
                 let layer_configuration = self.get_layer_configuration(l);
-                let layer_configuration_without_bias =
-                    Matrix::zero(layer_configuration.get_m(), 1).h_concat(
-                    &layer_configuration.get_sub_matrix(0, 1, layer_configuration.get_m(), layer_configuration.get_n() - 1));
+                let layer_configuration_without_bias = Matrix::zero(layer_configuration.get_m(), 1)
+                    .h_concat(&layer_configuration.get_sub_matrix(
+                        0,
+                        1,
+                        layer_configuration.get_m(),
+                        layer_configuration.get_n() - 1,
+                    ));
                 big_d[(l - 1) as usize] = &big_d[(l - 1) as usize]
                     + &(&layer_configuration_without_bias * regularization_factor);
             }
@@ -261,11 +261,11 @@ impl<T: Float> NeuralNetwork<T> {
         expected_outputs: &Matrix<T>,
         regularization_factor: T,
         learning_rate: T,
-        method: CostMethod
+        method: CostMethod,
     ) -> NeuralNetwork<T> {
         let d = match method {
             CostMethod::CostGradient => self.delta(inputs, expected_outputs, regularization_factor),
-            CostMethod::Delta => self.delta(inputs, expected_outputs, regularization_factor)
+            CostMethod::Delta => self.delta(inputs, expected_outputs, regularization_factor),
         };
 
         let new_configuration = self
@@ -283,7 +283,7 @@ impl<T: Float> NeuralNetwork<T> {
         inputs: &Matrix<T>,
         expected_output_classes: &Matrix<T>,
         regularization_factor: T,
-        method: CostMethod
+        method: CostMethod,
     ) {
         let expected_outputs = unclassify(expected_output_classes);
 
@@ -309,7 +309,13 @@ impl<T: Float> NeuralNetwork<T> {
         loop {
             let cost = self.cost(inputs, &expected_outputs, regularization_factor);
 
-            let new_network = self.descend(inputs, &expected_outputs, regularization_factor, learning_rate, method);
+            let new_network = self.descend(
+                inputs,
+                &expected_outputs,
+                regularization_factor,
+                learning_rate,
+                method,
+            );
             let new_cost = new_network.cost(inputs, &expected_outputs, regularization_factor);
 
             dbg!(cost);
@@ -445,19 +451,18 @@ mod tests {
         );
     }
 
-     #[test]
-     fn train_and_run() {
-         // TODO: Fix multi hidden layer network
-         let mut network = NeuralNetwork::<f64>::new(vec![2, 5, 4]);
-         for i in 0..tests_inputs().len() {
-             let inputs = &tests_inputs()[i];
-             let correct_outputs = &tests_outputs()[i];
-             network.train(inputs, correct_outputs, 0.0005, CostMethod::Delta);
+    #[test]
+    fn train_and_run() {
+        let mut network = NeuralNetwork::<f64>::new(vec![2, 5, 5, 4]);
+        for i in 0..tests_inputs().len() {
+            let inputs = &tests_inputs()[i];
+            let correct_outputs = &tests_outputs()[i];
+            network.train(inputs, correct_outputs, 0.0005, CostMethod::Delta);
 
-             let outputs = network.run(inputs);
-             assert_eq!(&outputs, correct_outputs);
-         }
-     }
+            let outputs = network.run(inputs);
+            assert_eq!(&outputs, correct_outputs);
+        }
+    }
 
     #[test]
     fn calculate_a() {
