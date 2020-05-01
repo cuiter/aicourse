@@ -1,7 +1,14 @@
 #![allow(dead_code)]
 use crate::matrix::{Float, Matrix};
 use crate::util::{classify, sigmoid, unclassify};
-use rand::Rng;
+use rand::{Rng, SeedableRng};
+
+/// Epsilon for random initialization.
+const INIT_EPSILON: f64 = 0.12;
+/// Epsilon for cost gradient calculation using the numerical approach.
+const COST_GRADIENT_EPSILON: f64 = 0.0001;
+/// Epsilon for determining gradient descent local minimum.
+const COST_EPSILON: f64 = 0.0001;
 
 #[derive(Copy, Clone)]
 enum CostMethod {
@@ -21,24 +28,43 @@ impl<T: Float> NeuralNetwork<T> {
     /// The sizes are specified per-layer in order.
     pub fn new(model_size: Vec<u32>) -> NeuralNetwork<T> {
         let mut rng = rand::thread_rng();
+        NeuralNetwork::<T>::new_common(model_size, || {
+            T::from_f64(rng.gen::<f64>() * (INIT_EPSILON * 2.0) - INIT_EPSILON).unwrap()
+        })
+    }
+
+    /// Creates a new deterministically randomized neural network model with the specified size.
+    /// The sizes are specified per-layer in order.
+    pub fn new_seeded(model_size: Vec<u32>, seed: u64) -> NeuralNetwork<T> {
+        let mut rng = rand_pcg::Pcg32::seed_from_u64(seed);
+        NeuralNetwork::<T>::new_common(model_size, || {
+            T::from_f64(rng.gen::<f64>() * (INIT_EPSILON * 2.0) - INIT_EPSILON).unwrap()
+        })
+    }
+
+    /// Creates a new empty neural network model with the specified size.
+    /// The sizes are specified per-layer in order.
+    /// Note: The resulting network cannot be trained effectively
+    /// because the features are effectively the same.
+    pub fn new_empty(model_size: Vec<u32>) -> NeuralNetwork<T> {
+        NeuralNetwork::<T>::new_common(model_size, || T::zero())
+    }
+
+    /// Common function for creating a new neural network model.
+    /// Every element is initialized with the value of init_function().
+    fn new_common<F>(model_size: Vec<u32>, mut init_function: F) -> NeuralNetwork<T>
+    where
+        F: FnMut() -> T,
+    {
         let mut configuration = vec![];
         for i in 0..(model_size.len() - 1) {
             let mut matrix = Matrix::<T>::zero(model_size[i + 1], model_size[i] + 1);
             for m in 0..matrix.get_m() {
                 for n in 0..matrix.get_n() {
-                    matrix[(m, n)] = T::from_f64(rng.gen::<f64>() * 0.24 - 0.12).unwrap();
+                    matrix[(m, n)] = (init_function)();
                 }
             }
             configuration.push(matrix);
-        }
-
-        NeuralNetwork { configuration }
-    }
-
-    pub fn new_empty(model_size: Vec<u32>) -> NeuralNetwork<T> {
-        let mut configuration = vec![];
-        for i in 0..(model_size.len() - 1) {
-            configuration.push(Matrix::<T>::zero(model_size[i + 1], model_size[i] + 1));
         }
 
         NeuralNetwork { configuration }
@@ -107,6 +133,7 @@ impl<T: Float> NeuralNetwork<T> {
         Matrix::one(1, a.get_n()).v_concat(&a)
     }
 
+    /// Calculates the added regularization cost of the cost function.
     fn regularization_cost(&self, inputs_m: u32, regularization_factor: T) -> T {
         if regularization_factor == T::zero() {
             T::zero()
@@ -126,6 +153,7 @@ impl<T: Float> NeuralNetwork<T> {
         }
     }
 
+    /// Calculates the cost of the current configuration based on the inputs and outputs.
     /// See https://www.youtube.com/watch?v=0twSSFZN9Mc&t=3m44s
     fn cost(
         &self,
@@ -151,13 +179,14 @@ impl<T: Float> NeuralNetwork<T> {
         normal_cost + self.regularization_cost(inputs.get_m(), regularization_factor)
     }
 
+    /// Calculates the cost gradient using a numerical approach.
     fn cost_gradient(
         &self,
         inputs: &Matrix<T>,
         expected_outputs: &Matrix<T>,
         regularization_factor: T,
     ) -> Vec<Matrix<T>> {
-        let cost_epsilon = T::from_f64(0.0001).unwrap();
+        let cost_epsilon = T::from_f64(COST_GRADIENT_EPSILON).unwrap();
 
         let mut cost_gradient = self.clone_empty();
 
@@ -190,6 +219,7 @@ impl<T: Float> NeuralNetwork<T> {
         cost_gradient
     }
 
+    /// Calculates the backpropagation error for the specified layer.
     fn backprop_error(
         &self,
         inputs: &Matrix<T>,
@@ -211,6 +241,7 @@ impl<T: Float> NeuralNetwork<T> {
         }
     }
 
+    /// Calculates the delta (cost gradient) using backpropagation.
     fn delta(
         &self,
         inputs: &Matrix<T>,
@@ -255,6 +286,7 @@ impl<T: Float> NeuralNetwork<T> {
         big_d
     }
 
+    /// Descends one step down the cost slope and returns a network with the resulting configuration.
     fn descend(
         &self,
         inputs: &Matrix<T>,
@@ -278,6 +310,8 @@ impl<T: Float> NeuralNetwork<T> {
         NeuralNetwork::from_configuration(new_configuration)
     }
 
+    /// Trains the neural network with the given input and output data (test dataset).
+    /// The cost method can be either one of Delta (backpropagation) or CostGradient (numerical approach).
     pub fn train(
         &mut self,
         inputs: &Matrix<T>,
@@ -303,7 +337,7 @@ impl<T: Float> NeuralNetwork<T> {
             "number of output classifications equals number of units in last layer"
         );
 
-        let cost_epsilon = T::from_f64(0.0001).unwrap();
+        let cost_epsilon = T::from_f64(COST_EPSILON).unwrap();
         let mut learning_rate = T::from_f32(1.0).unwrap();
 
         loop {
@@ -317,11 +351,6 @@ impl<T: Float> NeuralNetwork<T> {
                 method,
             );
             let new_cost = new_network.cost(inputs, &expected_outputs, regularization_factor);
-
-            dbg!(cost);
-            dbg!(new_cost);
-            dbg!(learning_rate);
-            dbg!(new_network.get_layer_configuration(new_network.get_n_layers() - 1));
 
             if T::abs(new_cost - cost) < cost_epsilon {
                 break;
@@ -354,7 +383,6 @@ impl<T: Float> NeuralNetwork<T> {
     /// the classifications with the highest probability.
     pub fn run(&self, inputs: &Matrix<T>) -> Matrix<T> {
         let results = self.run_extended(inputs);
-        dbg!(&results);
         classify(&results)
     }
 }
@@ -453,7 +481,7 @@ mod tests {
 
     #[test]
     fn train_and_run() {
-        let mut network = NeuralNetwork::<f64>::new(vec![2, 5, 5, 4]);
+        let mut network = NeuralNetwork::<f64>::new_seeded(vec![2, 5, 5, 4], 420);
         for i in 0..tests_inputs().len() {
             let inputs = &tests_inputs()[i];
             let correct_outputs = &tests_outputs()[i];
