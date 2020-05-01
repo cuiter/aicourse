@@ -151,7 +151,7 @@ fn read_matrix_data<T: Float>(
         for n in 0..n_cols {
             let index = 4
                 + 4 * magic.dimensions as usize
-                + data_type_size(magic.data_type) * (m * n_rows + n);
+                + data_type_size(magic.data_type) * (m * n_cols + n);
             matrix[(m as u32, n as u32)] = read_element(data, magic.data_type, index)?;
         }
     }
@@ -172,31 +172,24 @@ pub fn load_idx<T: Float>(data: &Vec<u8>) -> Result<Matrix<T>, Error> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::testdata::idx::*;
 
     #[test]
-    fn load_idx_1() {
-        let data = vec![0, 0, 0x08, 1, 0, 0, 0, 1, 69];
-        let expected_matrix = Matrix::new(1, 1, vec![69.0]);
-
-        let matrix = load_idx(&data).unwrap();
-        assert_eq!(matrix, expected_matrix);
+    fn load_idx_ok() {
+        let inputs = data_inputs();
+        let expected_outputs = matrix_outputs();
+        for i in 0..inputs.len() {
+            let output = load_idx(&inputs[i]).unwrap();
+            assert_eq!(output, expected_outputs[i]);
+        }
     }
 
     #[test]
-    fn load_idx_2() {
-        let data = vec![0, 0, 0x09, 2, 0, 0, 0, 2, 0, 0, 0, 2, 1, 2, 3, 128];
-        let expected_matrix = Matrix::new(2, 2, vec![1.0, 2.0, 3.0, -128.0]);
-
-        let matrix = load_idx(&data).unwrap();
-        assert_eq!(matrix, expected_matrix);
-    }
-
-    #[test]
-    fn load_idx_3() {
-        let data = vec![0, 0, 0x0B, 2, 0, 0, 0, 2, 0, 0, 0, 2, 0, 1, 0, 2, 255, 255, 127, 255];
-        let expected_matrix = Matrix::new(2, 2, vec![1.0, 2.0, -1.0, 32767.0]);
-
-        let matrix = load_idx(&data).unwrap();
-        assert_eq!(matrix, expected_matrix);
+    fn load_idx_error() {
+        let inputs = wrong_data_inputs();
+        for i in 0..inputs.len() {
+            let output = load_idx::<f64>(&inputs[i]);
+            assert!(output.is_err());
+        }
     }
 }
