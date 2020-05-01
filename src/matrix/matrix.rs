@@ -109,6 +109,14 @@ impl<T: Float> Matrix<T> {
     pub fn get_n(&self) -> u32 {
         self.n
     }
+    /// Returns the dimensions of the matrix (m, n).
+    /// ```
+    /// let matrix = aicourse::matrix::Matrix::<f64>::zero(3, 2);
+    /// assert_eq!(matrix.get_dimensions(), (3, 2));
+    /// ```
+    pub fn get_dimensions(&self) -> (u32, u32) {
+        (self.m, self.n)
+    }
     /// Returns the number of elements in the matrix.
     /// ```
     /// let matrix = aicourse::matrix::Matrix::<f64>::zero(3, 2);

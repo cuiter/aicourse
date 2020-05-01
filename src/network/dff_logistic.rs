@@ -11,7 +11,7 @@ const COST_GRADIENT_EPSILON: f64 = 0.0001;
 const COST_EPSILON: f64 = 0.0001;
 
 #[derive(Copy, Clone)]
-enum CostMethod {
+pub enum CostMethod {
     CostGradient,
     Delta,
 }
@@ -19,7 +19,7 @@ enum CostMethod {
 /// A deep feed-forward logistic neural network that acts as a classifier.
 /// It can take arbitrary many inputs and produce arbitrary many different classifications.
 /// It needs to be trained before it can produce useful results.
-struct NeuralNetwork<T: Float> {
+pub struct NeuralNetwork<T: Float> {
     configuration: Vec<Matrix<T>>, // One Matrix per layer, layer - 1 in total
 }
 
@@ -342,6 +342,7 @@ impl<T: Float> NeuralNetwork<T> {
 
         loop {
             let cost = self.cost(inputs, &expected_outputs, regularization_factor);
+            println!("{}", cost);
 
             let new_network = self.descend(
                 inputs,
