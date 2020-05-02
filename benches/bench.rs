@@ -1,8 +1,10 @@
 #[macro_use]
 extern crate bencher;
 
-use aicourse::matrix::{Matrix, load_idx};
-use bencher::{Bencher, black_box};
+use aicourse::matrix::{load_idx, Matrix};
+use aicourse::network::dff_logistic::{CostMethod, NeuralNetwork};
+use aicourse::testdata;
+use bencher::{black_box, Bencher};
 use std::fs;
 
 fn matrix_zero(bench: &mut Bencher, rows_cols: u32) {
@@ -38,5 +40,25 @@ fn load_idx_mnist_test_images(bench: &mut Bencher) {
     });
 }
 
-benchmark_group!(benches, matrix_zero_100_100, matrix_zero_1000_1000, load_idx_mnist_train_labels, load_idx_mnist_test_images);
+fn dff_logistic_train(bench: &mut Bencher) {
+    let inputs = &testdata::dff_logistic::tests_inputs()[0];
+    let correct_outputs = &testdata::dff_logistic::tests_outputs()[0];
+
+    bench.iter(|| {
+        let mut network = NeuralNetwork::<f64>::new_seeded(vec![2, 5, 5, 4], 420);
+
+        network.train(inputs, correct_outputs, 0.0005, CostMethod::Delta);
+
+        black_box(network);
+    });
+}
+
+benchmark_group!(
+    benches,
+    matrix_zero_100_100,
+    matrix_zero_1000_1000,
+    load_idx_mnist_train_labels,
+    load_idx_mnist_test_images,
+    dff_logistic_train
+);
 benchmark_main!(benches);

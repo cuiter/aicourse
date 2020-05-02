@@ -1,6 +1,6 @@
 use super::matrix::{Float, Matrix};
 use std::convert::TryInto;
-use std::io::{Result, Error, ErrorKind};
+use std::io::{Error, ErrorKind, Result};
 
 #[derive(Copy, Clone)]
 enum DataType {
@@ -40,15 +40,9 @@ fn read_u32(data: &Vec<u8>, index: usize) -> Result<u32> {
 fn read_element<T: Float>(element_data: &[u8], data_type: DataType) -> T {
     let convert_result = match data_type {
         DataType::U8 => T::from_u8(element_data[0]),
-        DataType::I8 => T::from_i8(i8::from_be_bytes(
-            element_data.try_into().unwrap(),
-        )),
-        DataType::I16 => T::from_i16(i16::from_be_bytes(
-            element_data.try_into().unwrap(),
-        )),
-        DataType::I32 => T::from_i32(i32::from_be_bytes(
-            element_data.try_into().unwrap(),
-        )),
+        DataType::I8 => T::from_i8(i8::from_be_bytes(element_data.try_into().unwrap())),
+        DataType::I16 => T::from_i16(i16::from_be_bytes(element_data.try_into().unwrap())),
+        DataType::I32 => T::from_i32(i32::from_be_bytes(element_data.try_into().unwrap())),
         DataType::F32 => T::from_f32(f32::from_bits(u32::from_be_bytes(
             element_data.try_into().unwrap(),
         ))),

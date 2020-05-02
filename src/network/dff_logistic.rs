@@ -342,7 +342,6 @@ impl<T: Float> NeuralNetwork<T> {
 
         loop {
             let cost = self.cost(inputs, &expected_outputs, regularization_factor);
-            println!("{}", cost);
 
             let new_network = self.descend(
                 inputs,
