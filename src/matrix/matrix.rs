@@ -765,8 +765,13 @@ impl<'a, 'b, T: Float> ops::Mul<&'b Matrix<T>> for &'a Matrix<T> {
         {
             // ndarray is pretty quick as standard, and even faster when compiled with BLAS support.
             use ndarray::ArrayView;
-            let self_array = ArrayView::from_shape((self.m as usize, self.n as usize), &self.data).unwrap();
-            let other_array = ArrayView::from_shape((other.get_m() as usize, other.get_n() as usize), &other.data).unwrap();
+            let self_array =
+                ArrayView::from_shape((self.m as usize, self.n as usize), &self.data).unwrap();
+            let other_array = ArrayView::from_shape(
+                (other.get_m() as usize, other.get_n() as usize),
+                &other.data,
+            )
+            .unwrap();
             let result_array = self_array.dot(&other_array);
 
             Matrix::new(self.m, other.get_n(), result_array.into_raw_vec())
