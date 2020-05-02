@@ -1,5 +1,5 @@
 use crate::matrix::{Float, Matrix};
-use crate::util::{classify, sigmoid, unclassify, accuracy};
+use crate::util::{accuracy, classify, sigmoid, unclassify};
 use rand::{Rng, SeedableRng};
 
 /// Epsilon for random initialization.
@@ -340,7 +340,9 @@ impl<T: Float> NeuralNetwork<T> {
         method: CostMethod,
     ) -> NeuralNetwork<T> {
         let d = match method {
-            CostMethod::CostGradient => self.cost_gradient(inputs, expected_outputs, regularization_factor),
+            CostMethod::CostGradient => {
+                self.cost_gradient(inputs, expected_outputs, regularization_factor)
+            }
             CostMethod::Delta => self.delta(inputs, expected_outputs, regularization_factor),
         };
 
@@ -364,10 +366,15 @@ impl<T: Float> NeuralNetwork<T> {
         expected_output_classes: &Matrix<T>,
     ) {
         if show_progress {
-            println!("Epoch: {}, Cost: {}, Accuracy: {}, Learning rate: {}", epoch, cost, accuracy(&self.run(inputs), expected_output_classes), learning_rate);
+            println!(
+                "Epoch: {}, Cost: {}, Accuracy: {}, Learning rate: {}",
+                epoch,
+                cost,
+                accuracy(&self.run(inputs), expected_output_classes),
+                learning_rate
+            );
         }
     }
-
 
     /// Trains the neural network with the given input and output data (test dataset).
     /// The cost method can be either one of Delta (backpropagation) or CostGradient (numerical approach).
@@ -375,7 +382,7 @@ impl<T: Float> NeuralNetwork<T> {
         &mut self,
         inputs: &Matrix<T>,
         expected_output_classes: &Matrix<T>,
-        params: TrainParameters<T>
+        params: TrainParameters<T>,
     ) {
         let expected_outputs = unclassify(expected_output_classes);
 
@@ -401,7 +408,14 @@ impl<T: Float> NeuralNetwork<T> {
             let cost = self.cost(inputs, &expected_outputs, params.regularization_factor);
 
             if epoch == 1 {
-                self.print_progress(params.show_progress, 0, cost, learning_rate, inputs, expected_output_classes);
+                self.print_progress(
+                    params.show_progress,
+                    0,
+                    cost,
+                    learning_rate,
+                    inputs,
+                    expected_output_classes,
+                );
             }
 
             let new_network = self.descend(
@@ -411,7 +425,8 @@ impl<T: Float> NeuralNetwork<T> {
                 learning_rate,
                 params.cost_method,
             );
-            let new_cost = new_network.cost(inputs, &expected_outputs, params.regularization_factor);
+            let new_cost =
+                new_network.cost(inputs, &expected_outputs, params.regularization_factor);
 
             if T::abs(new_cost - cost) < params.cost_epsilon {
                 break;
@@ -432,7 +447,14 @@ impl<T: Float> NeuralNetwork<T> {
                 learning_rate *= T::from_f32(0.5).unwrap();
             }
 
-            self.print_progress(params.show_progress, epoch, T::min(cost, new_cost), learning_rate, inputs, expected_output_classes);
+            self.print_progress(
+                params.show_progress,
+                epoch,
+                T::min(cost, new_cost),
+                learning_rate,
+                inputs,
+                expected_output_classes,
+            );
         }
     }
 

@@ -54,7 +54,8 @@ pub fn accuracy<T: Float>(classes: &Matrix<T>, expected_classes: &Matrix<T>) -> 
         .iter()
         .zip(expected_classes.iter())
         .map(|(a, b)| if a == b { 1.0f32 } else { 0.0f32 })
-        .sum::<f32>() / classes.get_m() as f32
+        .sum::<f32>()
+        / classes.get_m() as f32
 }
 
 #[cfg(test)]

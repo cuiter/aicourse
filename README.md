@@ -42,3 +42,14 @@ algorithm.
 Logistic regression in both single-classification and one-vs-all are
 implemented. Regularization is implemented on all methods, though I am not
 certain whether the logistic regression regularization methods are correct.
+
+## Lecture 8-9
+
+A deep feed-forward neural network using the logistic sigmoid activation
+function is implemented and works. It's not clear whether regularization works
+correctly, and it can be quite slow. Nonetheless, in testing it is quite
+promising.
+
+After training a [28 * 28, 256, 10] unit network with the first 1000 samples of
+the MNIST train dataset (yes, it's slow), it is able to classify the MNIST
+test dataset with an accuracy of >75% after 20 epochs.
