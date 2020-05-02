@@ -23,6 +23,31 @@ pub struct NeuralNetwork<T: Float> {
     configuration: Vec<Matrix<T>>, // One Matrix per layer, layer - 1 in total
 }
 
+/// A series of calculated activation values.
+struct CalculatedA<T: Float> {
+    a: Vec<Matrix<T>>,
+}
+
+impl<T: Float> CalculatedA<T> {
+    fn new() -> CalculatedA<T> {
+        CalculatedA { a: vec![] }
+    }
+
+    fn add_layer(&mut self, a_layer: Matrix<T>) {
+        self.a.push(a_layer);
+    }
+
+    fn get_a(&self, layer: u32) -> &Matrix<T> {
+        assert!(layer as usize <= self.a.len());
+        &self.a[layer as usize - 1]
+    }
+
+    fn get_a_with_bias(&self, layer: u32) -> Matrix<T> {
+        let a = self.get_a(layer);
+        Matrix::one(1, a.get_n()).v_concat(a)
+    }
+}
+
 impl<T: Float> NeuralNetwork<T> {
     /// Creates a new randomized neural network model with the specified size.
     /// The sizes are specified per-layer in order.
@@ -113,24 +138,23 @@ impl<T: Float> NeuralNetwork<T> {
         self.configuration.last().unwrap().get_m()
     }
 
-    /// Calculates a(l) for layer l given the inputs.
-    fn calculate_a(&self, inputs: &Matrix<T>, layer: u32) -> Matrix<T> {
-        if layer == 1 {
-            inputs.transpose()
-        } else {
-            let a_input = self.calculate_a(inputs, layer - 1);
-            let a_input_one = Matrix::one(1, inputs.get_m()).v_concat(&a_input);
-            let z = self.get_layer_configuration(layer - 1) * &a_input_one;
-            let a = z.map(sigmoid);
+    /// Calculates a(l) for all layers given the inputs, i.e. perform forward propagation.
+    fn calculate_a(&self, inputs: &Matrix<T>) -> CalculatedA<T> {
+        let mut calculated_a = CalculatedA::new();
+        for layer in 1..=self.get_n_layers() {
+            let a_layer = if layer == 1 {
+                inputs.transpose()
+            } else {
+                let a_input = calculated_a.get_a_with_bias(layer - 1);
+                let z = self.get_layer_configuration(layer - 1) * &a_input;
 
-            a
+                z.map(sigmoid)
+            };
+
+            calculated_a.add_layer(a_layer);
         }
-    }
 
-    /// Calculates a(l), including the bias unit, for layer l given the inputs.
-    fn calculate_a_with_bias(&self, inputs: &Matrix<T>, layer: u32) -> Matrix<T> {
-        let a = self.calculate_a(inputs, layer);
-        Matrix::one(1, a.get_n()).v_concat(&a)
+        calculated_a
     }
 
     /// Calculates the added regularization cost of the cost function.
@@ -168,8 +192,7 @@ impl<T: Float> NeuralNetwork<T> {
 
         for i in 0..inputs.get_m() {
             for k in 0..expected_outputs.get_n() {
-                error_sum +=
-                    expected_outputs[(i, k)] * T::ln(hypothesis[(i, k)])
+                error_sum += expected_outputs[(i, k)] * T::ln(hypothesis[(i, k)])
                     + (one - expected_outputs[(i, k)]) * T::ln(one - hypothesis[(i, k)]);
             }
         }
@@ -220,17 +243,17 @@ impl<T: Float> NeuralNetwork<T> {
     /// Calculates the backpropagation error for the specified layer.
     fn backprop_error(
         &self,
-        inputs: &Matrix<T>,
+        calculated_a: &CalculatedA<T>,
         expected_outputs: &Matrix<T>,
         layer: u32,
     ) -> Matrix<T> {
         if layer == self.get_n_layers() {
-            &self.calculate_a(inputs, layer) - &expected_outputs.transpose()
+            calculated_a.get_a(layer) - &expected_outputs.transpose()
         } else {
             let left = self.get_layer_configuration(layer).transpose();
-            let right = self.backprop_error(inputs, expected_outputs, layer + 1);
+            let right = self.backprop_error(calculated_a, expected_outputs, layer + 1);
             let first_half_with_bias = &left * &right;
-            let a = self.calculate_a_with_bias(inputs, layer);
+            let a = calculated_a.get_a_with_bias(layer);
             let second_half = a.elem_mul(&(&Matrix::<T>::one(a.get_m(), a.get_n()) - &a));
 
             let error = first_half_with_bias.elem_mul(&second_half);
@@ -246,12 +269,15 @@ impl<T: Float> NeuralNetwork<T> {
         expected_outputs: &Matrix<T>,
         regularization_factor: T,
     ) -> Vec<Matrix<T>> {
+        // Perform forward propagation.
+        let calculated_a = self.calculate_a(inputs);
+        // Perform backpropagation.
         let mut d = vec![];
 
         for _i in 0..inputs.get_m() {
             for l in 1..self.get_n_layers() {
-                let delta_add = &self.backprop_error(inputs, &expected_outputs, l + 1)
-                    * &self.calculate_a_with_bias(inputs, l).transpose();
+                let delta_add = &self.backprop_error(&calculated_a, &expected_outputs, l + 1)
+                    * &calculated_a.get_a_with_bias(l).transpose();
 
                 if d.len() < l as usize {
                     d.push(delta_add);
@@ -276,7 +302,8 @@ impl<T: Float> NeuralNetwork<T> {
                         layer_configuration.get_m(),
                         layer_configuration.get_n() - 1,
                     ));
-                big_d[(l - 1) as usize] += &(&layer_configuration_without_bias * regularization_factor);
+                big_d[(l - 1) as usize] +=
+                    &(&layer_configuration_without_bias * regularization_factor);
             }
         }
 
@@ -373,7 +400,8 @@ impl<T: Float> NeuralNetwork<T> {
     /// Runs the neural network model on the inputs and returns
     /// the probabilities for all different classifications.
     fn run_extended(&self, inputs: &Matrix<T>) -> Matrix<T> {
-        self.calculate_a(inputs, self.get_n_layers()).transpose()
+        let calculated_a = self.calculate_a(inputs);
+        calculated_a.get_a(self.get_n_layers()).transpose()
     }
 
     /// Runs the neural network model on the inputs and returns
@@ -495,8 +523,10 @@ mod tests {
         for i in 0..tests_inputs().len() {
             let inputs = &tests_inputs()[i];
 
+            let calculated_a = network.calculate_a(inputs);
+
             for l in 2..=network.get_n_layers() {
-                let a = network.calculate_a(inputs, l);
+                let a = calculated_a.get_a(l);
                 assert_eq!(a.get_m(), network.get_layer_n_units(l));
                 assert_eq!(a.get_n(), inputs.get_m());
                 for val in a.iter() {
@@ -513,8 +543,10 @@ mod tests {
             let inputs = &tests_inputs()[i];
             let correct_outputs = &tests_outputs()[i];
 
+            let calculated_a = network.calculate_a(inputs);
+
             for l in 2..=network.get_n_layers() {
-                let error = network.backprop_error(inputs, &unclassify(correct_outputs), l);
+                let error = network.backprop_error(&calculated_a, &unclassify(correct_outputs), l);
                 assert_eq!(error.get_m(), network.get_layer_n_units(l));
                 assert_eq!(error.get_n(), inputs.get_m());
                 for delta in error.iter() {

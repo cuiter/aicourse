@@ -5,11 +5,22 @@ use std::ops;
 
 /// Any floating point type that can be used by Matrix<T>.
 pub trait Float:
-    num_traits::Float + num_traits::FloatConst + num_traits::FromPrimitive + num_traits::NumAssignOps + fmt::Debug + fmt::Display
+    num_traits::Float
+    + num_traits::FloatConst
+    + num_traits::FromPrimitive
+    + num_traits::NumAssignOps
+    + fmt::Debug
+    + fmt::Display
 {
 }
-impl<T: num_traits::Float + num_traits::FloatConst + num_traits::FromPrimitive + num_traits::NumAssignOps + fmt::Debug + fmt::Display> Float
-    for T
+impl<
+        T: num_traits::Float
+            + num_traits::FloatConst
+            + num_traits::FromPrimitive
+            + num_traits::NumAssignOps
+            + fmt::Debug
+            + fmt::Display,
+    > Float for T
 {
 }
 
@@ -735,7 +746,8 @@ impl<'a, 'b, T: Float> ops::Mul<&'b Matrix<T>> for &'a Matrix<T> {
         for row in 0..self.m {
             for column in 0..other.get_n() {
                 for codependent in 0..self.n {
-                    result[(row, column)] += self[(row, codependent)] * other[(codependent, column)];
+                    result[(row, column)] +=
+                        self[(row, codependent)] * other[(codependent, column)];
                 }
             }
         }
