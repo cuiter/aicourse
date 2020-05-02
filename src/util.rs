@@ -46,6 +46,17 @@ pub fn unclassify<T: Float>(classes: &Matrix<T>) -> Matrix<T> {
     result
 }
 
+// Calculates the accuracy, the amount of correct outputs / total outputs.
+pub fn accuracy<T: Float>(classes: &Matrix<T>, expected_classes: &Matrix<T>) -> f32 {
+    assert_eq!(classes.get_dimensions(), expected_classes.get_dimensions());
+    assert_eq!(classes.get_n(), 1);
+    classes
+        .iter()
+        .zip(expected_classes.iter())
+        .map(|(a, b)| if a == b { 1.0f32 } else { 0.0f32 })
+        .sum::<f32>() / classes.get_m() as f32
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -86,6 +97,19 @@ mod tests {
             assert_eq!(
                 unclassify(&unclassify_inputs()[i]),
                 unclassify_outputs()[i],
+                "test case {}",
+                i
+            );
+        }
+    }
+
+    #[test]
+    fn accuracy_correct() {
+        for i in 0..accuracy_inputs().len() {
+            let (classes, expected_classes) = &accuracy_inputs()[i];
+            assert_eq!(
+                accuracy(&classes, &expected_classes),
+                accuracy_outputs()[i],
                 "test case {}",
                 i
             );

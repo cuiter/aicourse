@@ -1,19 +1,39 @@
-#![allow(dead_code)]
 use crate::matrix::{Float, Matrix};
-use crate::util::{classify, sigmoid, unclassify};
+use crate::util::{classify, sigmoid, unclassify, accuracy};
 use rand::{Rng, SeedableRng};
 
 /// Epsilon for random initialization.
 const INIT_EPSILON: f64 = 0.12;
 /// Epsilon for cost gradient calculation using the numerical approach.
 const COST_GRADIENT_EPSILON: f64 = 0.0001;
-/// Epsilon for determining gradient descent local minimum.
-const COST_EPSILON: f64 = 0.0001;
 
 #[derive(Copy, Clone)]
 pub enum CostMethod {
     CostGradient,
     Delta,
+}
+
+/// Configurable parameters for training the neural network.
+#[derive(Clone)]
+pub struct TrainParameters<T: Float> {
+    pub regularization_factor: T,
+    pub max_epochs: u32,
+    pub cost_epsilon: T,
+    pub cost_method: CostMethod,
+    pub show_progress: bool,
+}
+
+impl<T: Float> TrainParameters<T> {
+    /// Sane defaults for testing.
+    pub fn defaults() -> TrainParameters<T> {
+        TrainParameters {
+            regularization_factor: T::from_f64(0.0005).unwrap(),
+            max_epochs: std::u32::MAX - 1,
+            cost_epsilon: T::from_f64(0.0001).unwrap(),
+            cost_method: CostMethod::Delta,
+            show_progress: false,
+        }
+    }
 }
 
 /// A deep feed-forward logistic neural network that acts as a classifier.
@@ -320,7 +340,7 @@ impl<T: Float> NeuralNetwork<T> {
         method: CostMethod,
     ) -> NeuralNetwork<T> {
         let d = match method {
-            CostMethod::CostGradient => self.delta(inputs, expected_outputs, regularization_factor),
+            CostMethod::CostGradient => self.cost_gradient(inputs, expected_outputs, regularization_factor),
             CostMethod::Delta => self.delta(inputs, expected_outputs, regularization_factor),
         };
 
@@ -334,14 +354,28 @@ impl<T: Float> NeuralNetwork<T> {
         NeuralNetwork::from_configuration(new_configuration)
     }
 
+    fn print_progress(
+        &self,
+        show_progress: bool,
+        epoch: u32,
+        cost: T,
+        learning_rate: T,
+        inputs: &Matrix<T>,
+        expected_output_classes: &Matrix<T>,
+    ) {
+        if show_progress {
+            println!("Epoch: {}, Cost: {}, Accuracy: {}, Learning rate: {}", epoch, cost, accuracy(&self.run(inputs), expected_output_classes), learning_rate);
+        }
+    }
+
+
     /// Trains the neural network with the given input and output data (test dataset).
     /// The cost method can be either one of Delta (backpropagation) or CostGradient (numerical approach).
     pub fn train(
         &mut self,
         inputs: &Matrix<T>,
         expected_output_classes: &Matrix<T>,
-        regularization_factor: T,
-        method: CostMethod,
+        params: TrainParameters<T>
     ) {
         let expected_outputs = unclassify(expected_output_classes);
 
@@ -361,22 +395,25 @@ impl<T: Float> NeuralNetwork<T> {
             "number of output classifications equals number of units in last layer"
         );
 
-        let cost_epsilon = T::from_f64(COST_EPSILON).unwrap();
         let mut learning_rate = T::from_f32(1.0).unwrap();
 
-        loop {
-            let cost = self.cost(inputs, &expected_outputs, regularization_factor);
+        for epoch in 1..=params.max_epochs {
+            let cost = self.cost(inputs, &expected_outputs, params.regularization_factor);
+
+            if epoch == 1 {
+                self.print_progress(params.show_progress, 0, cost, learning_rate, inputs, expected_output_classes);
+            }
 
             let new_network = self.descend(
                 inputs,
                 &expected_outputs,
-                regularization_factor,
+                params.regularization_factor,
                 learning_rate,
-                method,
+                params.cost_method,
             );
-            let new_cost = new_network.cost(inputs, &expected_outputs, regularization_factor);
+            let new_cost = new_network.cost(inputs, &expected_outputs, params.regularization_factor);
 
-            if T::abs(new_cost - cost) < cost_epsilon {
+            if T::abs(new_cost - cost) < params.cost_epsilon {
                 break;
             }
 
@@ -394,6 +431,8 @@ impl<T: Float> NeuralNetwork<T> {
                 // learning rate significantly.
                 learning_rate *= T::from_f32(0.5).unwrap();
             }
+
+            self.print_progress(params.show_progress, epoch, T::min(cost, new_cost), learning_rate, inputs, expected_output_classes);
         }
     }
 
@@ -510,7 +549,8 @@ mod tests {
         for i in 0..tests_inputs().len() {
             let inputs = &tests_inputs()[i];
             let correct_outputs = &tests_outputs()[i];
-            network.train(inputs, correct_outputs, 0.0005, CostMethod::Delta);
+            let train_params = TrainParameters::defaults();
+            network.train(inputs, correct_outputs, train_params);
 
             let outputs = network.run(inputs);
             assert_eq!(&outputs, correct_outputs);

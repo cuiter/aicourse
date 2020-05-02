@@ -35,6 +35,20 @@ pub mod util {
                                     1.0, 0.0, 0.0, 0.0,
                                     0.0, 1.0, 0.0, 0.0])]
     }
+    pub fn accuracy_inputs() -> Vec<(Matrix<f64>, Matrix<f64>)> {
+        vec![
+            (Matrix::new(10, 1, vec![1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0]),
+             Matrix::new(10, 1, vec![1.0, 2.0, 1.0, 3.0, 4.0, 1.0, 1.0, 5.0, 1.0, 7.0])),
+            (Matrix::new(8, 1, vec![8.0, 7.0, 6.0, 5.0, 4.0, 3.0, 2.0, 1.0]),
+             Matrix::new(8, 1, vec![8.0, 2.0, 1.0, 3.0, 4.0, 1.0, 1.0, 5.0]))
+        ]
+    }
+    pub fn accuracy_outputs() -> Vec<f32> {
+        vec![
+            0.5,
+            0.25
+        ]
+    }
 }
 
 pub mod idx {
