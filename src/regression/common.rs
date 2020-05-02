@@ -43,14 +43,14 @@ where
     let mut scaled_n_inputs = n_inputs.clone();
     for n in 0..n_inputs.get_n() {
         for m in 0..n_inputs.get_m() {
-            scaled_n_inputs[(m, n)] = scaled_n_inputs[(m, n)] * inputs_scale[(0, n)];
+            scaled_n_inputs[(m, n)] *= inputs_scale[(0, n)];
         }
     }
 
     let mut configuration = (train_gradient_descent)(&scaled_n_inputs, outputs, regularize_param)?;
 
     for m in 0..configuration.get_m() {
-        configuration[(m, 0)] = configuration[(m, 0)] * inputs_scale[(0, m)];
+        configuration[(m, 0)] *= inputs_scale[(0, m)];
     }
 
     Some(configuration)

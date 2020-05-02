@@ -1,15 +1,14 @@
 use core::slice::Iter;
-use num_traits::{cast, float};
 use std::cmp;
 use std::fmt;
 use std::ops;
 
 /// Any floating point type that can be used by Matrix<T>.
 pub trait Float:
-    float::Float + float::FloatConst + cast::FromPrimitive + fmt::Debug + fmt::Display
+    num_traits::Float + num_traits::FloatConst + num_traits::FromPrimitive + num_traits::NumAssignOps + fmt::Debug + fmt::Display
 {
 }
-impl<T: float::Float + float::FloatConst + cast::FromPrimitive + fmt::Debug + fmt::Display> Float
+impl<T: num_traits::Float + num_traits::FloatConst + num_traits::FromPrimitive + num_traits::NumAssignOps + fmt::Debug + fmt::Display> Float
     for T
 {
 }
@@ -609,6 +608,7 @@ impl<'a, T: Float> ops::Index<(u32, u32)> for Matrix<T> {
     /// assert_eq!(matrix[(1, 2)], 6.0);
     /// assert_eq!(matrix[(2, 1)], 8.0);
     /// ```
+    #[inline]
     fn index(&self, idx: (u32, u32)) -> &T {
         &self.data[self.item_index(idx)]
     }
@@ -628,6 +628,7 @@ impl<'a, T: Float> ops::IndexMut<(u32, u32)> for Matrix<T> {
     ///                                                             4.0, 5.0, 6.0,
     ///                                                             7.0, 8.0, 9.0]));
     /// ```
+    #[inline]
     fn index_mut(&mut self, idx: (u32, u32)) -> &mut T {
         let index = self.item_index(idx);
         &mut self.data[index]
@@ -734,8 +735,7 @@ impl<'a, 'b, T: Float> ops::Mul<&'b Matrix<T>> for &'a Matrix<T> {
         for row in 0..self.m {
             for column in 0..other.get_n() {
                 for codependent in 0..self.n {
-                    result[(row, column)] = result[(row, column)]
-                        + self[(row, codependent)] * other[(codependent, column)];
+                    result[(row, column)] += self[(row, codependent)] * other[(codependent, column)];
                 }
             }
         }

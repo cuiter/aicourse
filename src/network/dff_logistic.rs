@@ -168,8 +168,8 @@ impl<T: Float> NeuralNetwork<T> {
 
         for i in 0..inputs.get_m() {
             for k in 0..expected_outputs.get_n() {
-                error_sum = error_sum
-                    + expected_outputs[(i, k)] * T::ln(hypothesis[(i, k)])
+                error_sum +=
+                    expected_outputs[(i, k)] * T::ln(hypothesis[(i, k)])
                     + (one - expected_outputs[(i, k)]) * T::ln(one - hypothesis[(i, k)]);
             }
         }
@@ -194,16 +194,14 @@ impl<T: Float> NeuralNetwork<T> {
             for i in 0..self.get_layer_n_units(l + 1) {
                 for j in 0..self.get_layer_n_units(l) + 1 {
                     let mut left_configuration = self.configuration.clone();
-                    left_configuration[(l - 1) as usize][(i, j)] =
-                        left_configuration[(l - 1) as usize][(i, j)] - cost_epsilon;
+                    left_configuration[(l - 1) as usize][(i, j)] -= cost_epsilon;
                     let left_cost = NeuralNetwork::from_configuration(left_configuration).cost(
                         inputs,
                         expected_outputs,
                         regularization_factor,
                     );
                     let mut right_configuration = self.configuration.clone();
-                    right_configuration[(l - 1) as usize][(i, j)] =
-                        right_configuration[(l - 1) as usize][(i, j)] + cost_epsilon;
+                    right_configuration[(l - 1) as usize][(i, j)] += cost_epsilon;
                     let right_cost = NeuralNetwork::from_configuration(right_configuration).cost(
                         inputs,
                         expected_outputs,
@@ -278,8 +276,7 @@ impl<T: Float> NeuralNetwork<T> {
                         layer_configuration.get_m(),
                         layer_configuration.get_n() - 1,
                     ));
-                big_d[(l - 1) as usize] = &big_d[(l - 1) as usize]
-                    + &(&layer_configuration_without_bias * regularization_factor);
+                big_d[(l - 1) as usize] += &(&layer_configuration_without_bias * regularization_factor);
             }
         }
 
@@ -360,7 +357,7 @@ impl<T: Float> NeuralNetwork<T> {
                 // Heading in the right direction.
                 // After leaving the "top" of a parabola, it is usually safe
                 // to speed up the learning rate.
-                learning_rate = learning_rate * T::from_f32(1.1).unwrap();
+                learning_rate *= T::from_f32(1.1).unwrap();
                 self.configuration = new_network.get_configuration().clone();
             } else {
                 // If the new cost is higher than the previous cost,
@@ -368,7 +365,7 @@ impl<T: Float> NeuralNetwork<T> {
                 // over the perfect result into the wrong direction.
                 // In this case, keep the old configuration and decrease the
                 // learning rate significantly.
-                learning_rate = learning_rate * T::from_f32(0.5).unwrap();
+                learning_rate *= T::from_f32(0.5).unwrap();
             }
         }
     }
