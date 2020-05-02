@@ -11,6 +11,7 @@ pub trait Float:
     + num_traits::NumAssignOps
     + fmt::Debug
     + fmt::Display
+    + 'static
 {
 }
 impl<
@@ -19,7 +20,8 @@ impl<
             + num_traits::FromPrimitive
             + num_traits::NumAssignOps
             + fmt::Debug
-            + fmt::Display,
+            + fmt::Display
+            + 'static,
     > Float for T
 {
 }
@@ -108,6 +110,7 @@ impl<T: Float> Matrix<T> {
     /// let matrix = aicourse::matrix::Matrix::<f64>::zero(3, 2);
     /// assert_eq!(matrix.get_m(), 3);
     /// ```
+    #[inline]
     pub fn get_m(&self) -> u32 {
         self.m
     }
@@ -116,6 +119,7 @@ impl<T: Float> Matrix<T> {
     /// let matrix = aicourse::matrix::Matrix::<f64>::zero(3, 2);
     /// assert_eq!(matrix.get_n(), 2);
     /// ```
+    #[inline]
     pub fn get_n(&self) -> u32 {
         self.n
     }
@@ -741,18 +745,32 @@ impl<'a, 'b, T: Float> ops::Mul<&'b Matrix<T>> for &'a Matrix<T> {
     fn mul(self, other: &'b Matrix<T>) -> Matrix<T> {
         assert_eq!(self.n, other.get_m(), "self.n == other.m");
 
-        let mut result = Matrix::zero(self.m, other.get_n());
+        #[cfg(not(feature = "use_ndarray"))]
+        {
+            // Naive implementation, slow.
+            let mut result = Matrix::zero(self.m, other.get_n());
 
-        for row in 0..self.m {
-            for column in 0..other.get_n() {
-                for codependent in 0..self.n {
-                    result[(row, column)] +=
-                        self[(row, codependent)] * other[(codependent, column)];
+            for row in 0..self.m {
+                for column in 0..other.get_n() {
+                    for codependent in 0..self.n {
+                        result[(row, column)] +=
+                            self[(row, codependent)] * other[(codependent, column)];
+                    }
                 }
             }
-        }
 
-        result
+            result
+        }
+        #[cfg(feature = "use_ndarray")]
+        {
+            // ndarray is pretty quick as standard, and even faster when compiled with BLAS support.
+            use ndarray::ArrayView;
+            let self_array = ArrayView::from_shape((self.m as usize, self.n as usize), &self.data).unwrap();
+            let other_array = ArrayView::from_shape((other.get_m() as usize, other.get_n() as usize), &other.data).unwrap();
+            let result_array = self_array.dot(&other_array);
+
+            Matrix::new(self.m, other.get_n(), result_array.into_raw_vec())
+        }
     }
 }
 

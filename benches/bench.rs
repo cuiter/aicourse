@@ -2,7 +2,7 @@
 extern crate bencher;
 
 use aicourse::matrix::{load_idx, Matrix};
-use aicourse::network::dff_logistic::{CostMethod, NeuralNetwork};
+use aicourse::network::dff_logistic::*;
 use aicourse::testdata;
 use bencher::{black_box, Bencher};
 use std::fs;
@@ -47,7 +47,7 @@ fn dff_logistic_train(bench: &mut Bencher) {
     bench.iter(|| {
         let mut network = NeuralNetwork::<f64>::new_seeded(vec![2, 5, 5, 4], 420);
 
-        network.train(inputs, correct_outputs, 0.0005, CostMethod::Delta);
+        network.train(inputs, correct_outputs, TrainParameters::defaults());
 
         black_box(network);
     });
