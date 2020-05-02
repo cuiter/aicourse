@@ -1,4 +1,6 @@
 /target
 **/*.rs.bk
 
+perf.data*
+
 /datasets
