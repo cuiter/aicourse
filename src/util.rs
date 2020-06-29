@@ -1,5 +1,11 @@
 use crate::matrix::{Float, Matrix};
 
+// Good constants for increasing/decreasing gradient descent learning rate values.
+// Based on the "bold diver" algorithm, see:
+// https://willamette.edu/~gorr/classes/cs449/momrate.html
+pub const LEARNING_RATE_INCREASE: f32 = 1.05;
+pub const LEARNING_RATE_DECREASE: f32 = 0.50;
+
 /// The logistic sigmoid function.
 /// If z < 0, then 0 < output < 0.5
 /// If z >= 0, then 0.5 <= output < 1.0
@@ -58,6 +64,21 @@ pub fn accuracy<T: Float>(classes: &Matrix<T>, expected_classes: &Matrix<T>) -> 
         / classes.get_m() as f32
 }
 
+// Splits inputs into batches of a specific size.
+// The last batch may be shorter if there are not enough inputs.
+pub fn batch<T: Float>(inputs: &Matrix<T>, batch_size: u32) -> Vec<Matrix<T>> {
+    let mut result = Vec::with_capacity((inputs.get_m() / batch_size) as usize);
+    for batch in 0..(inputs.get_m() / batch_size) {
+        result.push(inputs.get_sub_matrix(batch * batch_size, 0, batch_size, inputs.get_n()));
+    }
+    if inputs.get_m() % batch_size != 0 {
+        let rows_processed = (inputs.get_m() / batch_size) * batch_size;
+        result.push(inputs.get_sub_matrix(rows_processed, 0, inputs.get_m() - rows_processed, inputs.get_n()));
+    }
+
+    result
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -111,6 +132,18 @@ mod tests {
             assert_eq!(
                 accuracy(&classes, &expected_classes),
                 accuracy_outputs()[i],
+                "test case {}",
+                i
+            );
+        }
+    }
+
+    #[test]
+    fn batch_correct() {
+        for i in 0..batch_inputs().len() {
+            assert_eq!(
+                batch(&batch_inputs()[i], 4),
+                batch_outputs()[i],
                 "test case {}",
                 i
             );

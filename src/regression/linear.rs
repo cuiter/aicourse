@@ -2,6 +2,7 @@ use crate::matrix::{Float, Matrix};
 use crate::regression::common::{
     add_zero_feature, train_gradient_descent_feature_scaling, SolveMethod,
 };
+use crate::util::{LEARNING_RATE_INCREASE, LEARNING_RATE_DECREASE};
 
 /// A linear regression problem solver.
 /// It needs to be trained before it can make predictions.
@@ -95,7 +96,7 @@ impl<T: Float> Solver<T> {
                 // Heading in the right direction.
                 // After leaving the "top" of a parabola, it is usually safe
                 // to speed up the learning rate.
-                learning_rate *= T::from_f32(1.1).unwrap();
+                learning_rate *= T::from_f32(LEARNING_RATE_INCREASE).unwrap();
                 current_configuration = new_configuration;
             } else {
                 // If the new cost is higher than the previous cost,
@@ -103,7 +104,7 @@ impl<T: Float> Solver<T> {
                 // over the perfect result into the wrong direction.
                 // In this case, keep the old configuration and decrease the
                 // learning rate significantly.
-                learning_rate *= T::from_f32(0.5).unwrap();
+                learning_rate *= T::from_f32(LEARNING_RATE_DECREASE).unwrap();
             }
         }
 

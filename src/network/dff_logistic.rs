@@ -1,5 +1,6 @@
 use crate::matrix::{Float, Matrix};
-use crate::util::{accuracy, classify, sigmoid, unclassify};
+use crate::util::{accuracy, classify, sigmoid, unclassify, LEARNING_RATE_INCREASE, LEARNING_RATE_DECREASE};
+pub use crate::network::dff::{CostMethod, TrainParameters};
 use rand::{Rng, SeedableRng};
 
 /// Epsilon for random initialization.
@@ -7,34 +8,6 @@ const INIT_EPSILON: f64 = 0.12;
 /// Epsilon for cost gradient calculation using the numerical approach.
 const COST_GRADIENT_EPSILON: f64 = 0.0001;
 
-#[derive(Copy, Clone)]
-pub enum CostMethod {
-    CostGradient,
-    Delta,
-}
-
-/// Configurable parameters for training the neural network.
-#[derive(Clone)]
-pub struct TrainParameters<T: Float> {
-    pub regularization_factor: T,
-    pub max_epochs: u32,
-    pub cost_epsilon: T,
-    pub cost_method: CostMethod,
-    pub show_progress: bool,
-}
-
-impl<T: Float> TrainParameters<T> {
-    /// Sane defaults for testing.
-    pub fn defaults() -> TrainParameters<T> {
-        TrainParameters {
-            regularization_factor: T::from_f64(0.0005).unwrap(),
-            max_epochs: std::u32::MAX - 1,
-            cost_epsilon: T::from_f64(0.0001).unwrap(),
-            cost_method: CostMethod::Delta,
-            show_progress: false,
-        }
-    }
-}
 
 /// A deep feed-forward logistic neural network that acts as a classifier.
 /// It can take arbitrary many inputs and produce arbitrary many different classifications.
@@ -436,7 +409,7 @@ impl<T: Float> NeuralNetwork<T> {
                 // Heading in the right direction.
                 // After leaving the "top" of a parabola, it is usually safe
                 // to speed up the learning rate.
-                learning_rate *= T::from_f32(1.1).unwrap();
+                learning_rate *= T::from_f32(LEARNING_RATE_INCREASE).unwrap();
                 self.configuration = new_network.get_configuration().clone();
             } else {
                 // If the new cost is higher than the previous cost,
@@ -444,7 +417,7 @@ impl<T: Float> NeuralNetwork<T> {
                 // over the perfect result into the wrong direction.
                 // In this case, keep the old configuration and decrease the
                 // learning rate significantly.
-                learning_rate *= T::from_f32(0.5).unwrap();
+                learning_rate *= T::from_f32(LEARNING_RATE_DECREASE).unwrap();
             }
 
             self.print_progress(
