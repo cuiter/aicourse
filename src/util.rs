@@ -1,4 +1,5 @@
 use crate::matrix::{Float, Matrix};
+use rand::Rng;
 
 // Good constants for increasing/decreasing gradient descent learning rate values.
 // Based on the "bold diver" algorithm, see:
@@ -52,7 +53,7 @@ pub fn unclassify<T: Float>(classes: &Matrix<T>) -> Matrix<T> {
     result
 }
 
-// Calculates the accuracy, the amount of correct outputs / total outputs.
+/// Calculates the accuracy, the amount of correct outputs / total outputs.
 pub fn accuracy<T: Float>(classes: &Matrix<T>, expected_classes: &Matrix<T>) -> f32 {
     assert_eq!(classes.get_dimensions(), expected_classes.get_dimensions());
     assert_eq!(classes.get_n(), 1);
@@ -64,8 +65,8 @@ pub fn accuracy<T: Float>(classes: &Matrix<T>, expected_classes: &Matrix<T>) -> 
         / classes.get_m() as f32
 }
 
-// Splits inputs into batches of a specific size.
-// The last batch may be shorter if there are not enough inputs.
+/// Splits inputs into batches of a specific size.
+/// The last batch may be shorter if there are not enough inputs.
 pub fn batch<T: Float>(inputs: &Matrix<T>, batch_size: u32) -> Vec<Matrix<T>> {
     let mut result = Vec::with_capacity((inputs.get_m() / batch_size) as usize);
     for batch in 0..(inputs.get_m() / batch_size) {
@@ -77,6 +78,33 @@ pub fn batch<T: Float>(inputs: &Matrix<T>, batch_size: u32) -> Vec<Matrix<T>> {
     }
 
     result
+}
+
+/// Shuffles the inputs in a random order.
+pub fn shuffle<T: Float, R: Rng>(inputs: &Matrix<T>, rng: R) -> Matrix<T> {
+    todo!();
+}
+
+/// Splits inputs by distribution (for example: 60%, 20%, 20%).
+/// Distribution sizes should sum up to 1. Errs in favor of the first batch.
+pub fn split<T: Float>(inputs: &Matrix<T>, distribution: &Vec<f32>) -> Vec<Matrix<T>> {
+    let mut sizes: Vec<u32> = distribution
+        .iter()
+        .map(|x| (x * inputs.get_m() as f32) as u32)
+        .collect();
+    let sizes_sum: u32 = sizes.iter().sum();
+    assert!(sizes_sum <= inputs.get_m());
+    let leftovers: u32 = inputs.get_m() - sizes_sum;
+    sizes[0] += leftovers;
+
+    let mut results = vec![];
+    let mut index = 0;
+    for size in sizes.iter() {
+        results.push(inputs.get_sub_matrix(index, 0, *size, inputs.get_n()));
+        index += size;
+    }
+
+    results
 }
 
 #[cfg(test)]
@@ -144,6 +172,19 @@ mod tests {
             assert_eq!(
                 batch(&batch_inputs()[i], 4),
                 batch_outputs()[i],
+                "test case {}",
+                i
+            );
+        }
+    }
+
+    #[test]
+    fn split_correct() {
+        for i in 0..split_inputs().len() {
+            let (inputs, distribution) = &split_inputs()[i];
+            assert_eq!(
+                split(inputs, distribution),
+                split_outputs()[i],
                 "test case {}",
                 i
             );
