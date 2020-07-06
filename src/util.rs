@@ -80,9 +80,24 @@ pub fn batch<T: Float>(inputs: &Matrix<T>, batch_size: u32) -> Vec<Matrix<T>> {
     result
 }
 
+/// Swaps two rows in a matrix.
+fn swap_row<T: Float>(inputs: &mut Matrix<T>, row_1: u32, row_2: u32) {
+    for n in 0..inputs.get_n() {
+        let temp = inputs[(row_1, n)];
+        inputs[(row_1, n)] = inputs[(row_2, n)];
+        inputs[(row_2, n)] = temp;
+    }
+}
+
 /// Shuffles the inputs in a random order.
-pub fn shuffle<T: Float, R: Rng>(inputs: &Matrix<T>, rng: R) -> Matrix<T> {
-    todo!();
+/// Uses an optimized Fisher-Yates shuffle algorithm.
+pub fn shuffle<T: Float, R: Rng>(inputs: &Matrix<T>, rng: &mut R) -> Matrix<T> {
+    let mut results = inputs.clone();
+    for m in (1..=(results.get_m() - 1)).rev() {
+        let other_m = rng.gen_range(0, m + 1);
+        swap_row(&mut results, m, other_m);
+    }
+    return results;
 }
 
 /// Splits inputs by distribution (for example: 60%, 20%, 20%).
@@ -185,6 +200,36 @@ mod tests {
             assert_eq!(
                 split(inputs, distribution),
                 split_outputs()[i],
+                "test case {}",
+                i
+            );
+        }
+    }
+
+    #[test]
+    fn swap_row_correct() {
+        for i in 0..swap_row_inputs().len() {
+            let (inputs, row_1, row_2) = &swap_row_inputs()[i];
+            let mut outputs = inputs.clone();
+            swap_row(&mut outputs, *row_1, *row_2);
+            assert_eq!(
+                outputs,
+                swap_row_outputs()[i],
+                "test case {}",
+                i
+            );
+        }
+    }
+
+    #[test]
+    fn shuffle_correct() {
+        for i in 0..shuffle_inputs().len() {
+            use rand::SeedableRng;
+            let (inputs, seed) = &shuffle_inputs()[i];
+            let mut rng = rand_pcg::Pcg64::seed_from_u64(*seed);
+            assert_eq!(
+                shuffle(&inputs, &mut rng),
+                shuffle_outputs()[i],
                 "test case {}",
                 i
             );
