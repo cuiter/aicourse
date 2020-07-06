@@ -1,6 +1,8 @@
 use crate::matrix::{Float, Matrix};
-use crate::util::{accuracy, classify, sigmoid, unclassify, LEARNING_RATE_INCREASE, LEARNING_RATE_DECREASE};
-pub use crate::network::dff::{CostMethod, TrainParameters};
+pub use crate::network::dff::{CostMethod, DFFNetwork, TrainParameters};
+use crate::util::{
+    accuracy, batch, classify, sigmoid, unclassify, LEARNING_RATE_DECREASE, LEARNING_RATE_INCREASE,
+};
 use rand::{Rng, SeedableRng};
 
 /// Epsilon for random initialization.
@@ -8,10 +10,10 @@ const INIT_EPSILON: f64 = 0.12;
 /// Epsilon for cost gradient calculation using the numerical approach.
 const COST_GRADIENT_EPSILON: f64 = 0.0001;
 
-
 /// A deep feed-forward logistic neural network that acts as a classifier.
 /// It can take arbitrary many inputs and produce arbitrary many different classifications.
 /// It needs to be trained before it can produce useful results.
+#[derive(Clone)]
 pub struct NeuralNetwork<T: Float> {
     configuration: Vec<Matrix<T>>, // One Matrix per layer, layer - 1 in total
 }
@@ -349,19 +351,27 @@ impl<T: Float> NeuralNetwork<T> {
         }
     }
 
+    /// Runs the neural network model on the inputs and returns
+    /// the probabilities for all different classifications.
+    fn run_extended(&self, inputs: &Matrix<T>) -> Matrix<T> {
+        let calculated_a = self.calculate_a(inputs);
+        calculated_a.get_a(self.get_n_layers()).transpose()
+    }
+}
+
+impl<T: Float> DFFNetwork<T> for NeuralNetwork<T> {
     /// Trains the neural network with the given input and output data (test dataset).
     /// The cost method can be either one of Delta (backpropagation) or CostGradient (numerical approach).
-    pub fn train(
+    fn train(
         &mut self,
         inputs: &Matrix<T>,
         expected_output_classes: &Matrix<T>,
         params: TrainParameters<T>,
     ) {
-        let expected_outputs = unclassify(expected_output_classes);
-
+        let expected_outputs = unclassify(expected_output_classes, self.get_n_outputs());
         assert_eq!(
             inputs.get_m(),
-            expected_outputs.get_m(),
+            expected_output_classes.get_m(),
             "number of inputs equals number of outputs"
         );
         assert_eq!(
@@ -369,13 +379,10 @@ impl<T: Float> NeuralNetwork<T> {
             self.get_layer_n_units(1),
             "number of input features equals number of units in first layer"
         );
-        assert_eq!(
-            expected_outputs.get_n(),
-            self.get_n_outputs(),
-            "number of output classifications equals number of units in last layer"
-        );
 
         let mut learning_rate = T::from_f32(1.0).unwrap();
+        let batched_inputs = batch(inputs, params.batch_size);
+        let batched_expected_outputs = batch(&expected_outputs, params.batch_size);
 
         for epoch in 1..=params.max_epochs {
             let cost = self.cost(inputs, &expected_outputs, params.regularization_factor);
@@ -391,13 +398,18 @@ impl<T: Float> NeuralNetwork<T> {
                 );
             }
 
-            let new_network = self.descend(
-                inputs,
-                &expected_outputs,
-                params.regularization_factor,
-                learning_rate,
-                params.cost_method,
-            );
+            let mut new_network = self.clone();
+            for batch in 0..batched_inputs.len() {
+                // Process batches sequentially,
+                // i.e. use the network from the previous batch in the next calculation.
+                new_network = new_network.descend(
+                    &batched_inputs[batch],
+                    &batched_expected_outputs[batch],
+                    params.regularization_factor,
+                    learning_rate,
+                    params.cost_method,
+                );
+            }
             let new_cost =
                 new_network.cost(inputs, &expected_outputs, params.regularization_factor);
 
@@ -432,15 +444,8 @@ impl<T: Float> NeuralNetwork<T> {
     }
 
     /// Runs the neural network model on the inputs and returns
-    /// the probabilities for all different classifications.
-    fn run_extended(&self, inputs: &Matrix<T>) -> Matrix<T> {
-        let calculated_a = self.calculate_a(inputs);
-        calculated_a.get_a(self.get_n_layers()).transpose()
-    }
-
-    /// Runs the neural network model on the inputs and returns
     /// the classifications with the highest probability.
-    pub fn run(&self, inputs: &Matrix<T>) -> Matrix<T> {
+    fn run(&self, inputs: &Matrix<T>) -> Matrix<T> {
         let results = self.run_extended(inputs);
         classify(&results)
     }
@@ -581,7 +586,11 @@ mod tests {
             let calculated_a = network.calculate_a(inputs);
 
             for l in 2..=network.get_n_layers() {
-                let error = network.backprop_error(&calculated_a, &unclassify(correct_outputs), l);
+                let error = network.backprop_error(
+                    &calculated_a,
+                    &unclassify(correct_outputs, network.get_n_outputs()),
+                    l,
+                );
                 assert_eq!(error.get_m(), network.get_layer_n_units(l));
                 assert_eq!(error.get_n(), inputs.get_m());
                 for delta in error.iter() {
@@ -598,7 +607,11 @@ mod tests {
             let inputs = &tests_inputs()[i];
             let correct_outputs = &tests_outputs()[i];
 
-            let n_cost = network.cost(inputs, &unclassify(correct_outputs), 0.0);
+            let n_cost = network.cost(
+                inputs,
+                &unclassify(correct_outputs, network.get_n_outputs()),
+                0.0,
+            );
             assert!(
                 n_cost.is_finite() && n_cost >= 0.0,
                 "cost is finite and positive"
@@ -613,7 +626,11 @@ mod tests {
             let inputs = &tests_inputs()[i];
             let correct_outputs = &tests_outputs()[i];
 
-            let gradient = network.cost_gradient(inputs, &unclassify(correct_outputs), 0.0);
+            let gradient = network.cost_gradient(
+                inputs,
+                &unclassify(correct_outputs, network.get_n_outputs()),
+                0.0,
+            );
             assert_eq!(gradient.len(), network.get_n_layers() as usize - 1);
 
             for l in 1..network.get_n_layers() {
@@ -633,7 +650,11 @@ mod tests {
             let inputs = &tests_inputs()[i];
             let correct_outputs = &tests_outputs()[i];
 
-            let gradient = network.delta(inputs, &unclassify(correct_outputs), 0.0);
+            let gradient = network.delta(
+                inputs,
+                &unclassify(correct_outputs, network.get_n_outputs()),
+                0.0,
+            );
             assert_eq!(gradient.len(), network.get_n_layers() as usize - 1);
             for l in 1..network.get_n_layers() {
                 for i in 0..network.get_layer_n_units(l + 1) {
@@ -652,8 +673,16 @@ mod tests {
             let inputs = &tests_inputs()[i];
             let correct_outputs = &tests_outputs()[i];
 
-            let delta = &network.delta(inputs, &unclassify(correct_outputs), 0.0);
-            let cost_gradient = network.cost_gradient(inputs, &unclassify(correct_outputs), 0.0);
+            let delta = &network.delta(
+                inputs,
+                &unclassify(correct_outputs, network.get_n_outputs()),
+                0.0,
+            );
+            let cost_gradient = network.cost_gradient(
+                inputs,
+                &unclassify(correct_outputs, network.get_n_outputs()),
+                0.0,
+            );
             for l in 1..network.get_n_layers() {
                 assert!(
                     delta[(l - 1) as usize].approx_eq(&cost_gradient[(l - 1) as usize], 0.0002),

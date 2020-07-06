@@ -9,11 +9,13 @@ pub enum CostMethod {
 /// Configurable parameters for training the neural network.
 #[derive(Clone)]
 pub struct TrainParameters<T: Float> {
-    pub regularization_factor: T,
-    pub max_epochs: u32,
-    pub cost_epsilon: T,
-    pub cost_method: CostMethod,
-    pub show_progress: bool,
+    pub regularization_factor: T, // Regularization factor (λ). Higher suppresses variance but also increases bias.
+    pub max_epochs: u32,          // The maximum number of epochs before stopping.
+    pub cost_epsilon: T,          // Minimum cost before stopping.
+    pub cost_method: CostMethod,  // Method to determine the cost.
+    pub batch_size: u32,          // For each epoch the inputs are split into batches of this size.
+    pub shuffle_inputs: bool,     // Shuffle the inputs on each epoch. NOTE: Not yet implemented.
+    pub show_progress: bool,      // Show the progress on each epoch.
 }
 
 impl<T: Float> TrainParameters<T> {
@@ -24,12 +26,14 @@ impl<T: Float> TrainParameters<T> {
             max_epochs: std::u32::MAX - 1,
             cost_epsilon: T::from_f64(0.0001).unwrap(),
             cost_method: CostMethod::Delta,
+            batch_size: std::u32::MAX,
+            shuffle_inputs: false,
             show_progress: false,
         }
     }
 }
 
-pub trait DFFNetwork<T : Float>: Clone {
+pub trait DFFNetwork<T: Float>: Clone {
     /// Trains the neural network with the given input and output data (test dataset).
     fn train(
         &mut self,
