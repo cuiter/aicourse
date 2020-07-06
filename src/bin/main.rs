@@ -1,11 +1,7 @@
-use aicourse::matrix::{load_idx, Float, Matrix};
+use aicourse::matrix::load_idx;
 use aicourse::network::dff_logistic::*;
-use aicourse::util::accuracy;
+use aicourse::util::{accuracy, first_rows};
 use std::fs;
-
-fn first_rows<T: Float>(matrix: &Matrix<T>, n_rows: u32) -> Matrix<T> {
-    matrix.get_sub_matrix(0, 0, n_rows, matrix.get_n())
-}
 
 fn main() {
     let train_images = first_rows(
@@ -35,7 +31,8 @@ fn main() {
     let mut network = NeuralNetwork::<f32>::new(vec![28 * 28, 256, 10]);
     let mut train_params = TrainParameters::defaults();
     train_params.show_progress = true;
-    train_params.max_epochs = 20;
+    train_params.max_epochs = 50;
+    train_params.batch_size = 64;
     network.train(&train_images, &train_labels, train_params);
 
     println!(

@@ -35,7 +35,25 @@ pub fn classify<T: Float>(predictions: &Matrix<T>) -> Matrix<T> {
 
 /// Reverses a classification into a prediction with the class having a
 /// 100% probability and the rest 0%.
-pub fn unclassify<T: Float>(classes: &Matrix<T>) -> Matrix<T> {
+pub fn unclassify<T: Float>(classes: &Matrix<T>, max_class: u32) -> Matrix<T> {
+    let mut result = Matrix::zero(classes.get_m(), max_class);
+    for m in 0..classes.get_m() {
+        let class = classes[(m, 0)].to_u32().unwrap();
+        if class > max_class {
+            panic!(
+                "Class {} is higher than the maximum class {}",
+                class, max_class
+            );
+        }
+        result[(m, class - 1)] = T::from_u8(1).unwrap();
+    }
+
+    result
+}
+
+/// Same as unclassify, but automatically determines the number of classes
+/// (highest class occuring in the dataset).
+pub fn unclassify_auto<T: Float>(classes: &Matrix<T>) -> Matrix<T> {
     let mut max_class = T::neg_infinity();
     for m in 0..classes.get_m() {
         let class = classes[(m, 0)];
@@ -45,12 +63,7 @@ pub fn unclassify<T: Float>(classes: &Matrix<T>) -> Matrix<T> {
         }
     }
 
-    let mut result = Matrix::zero(classes.get_m(), max_class.to_u32().unwrap());
-    for m in 0..classes.get_m() {
-        result[(m, classes[(m, 0)].to_u32().unwrap() - 1)] = T::from_u8(1).unwrap();
-    }
-
-    result
+    unclassify(classes, max_class.to_u32().unwrap())
 }
 
 /// Calculates the accuracy, the amount of correct outputs / total outputs.
@@ -68,13 +81,22 @@ pub fn accuracy<T: Float>(classes: &Matrix<T>, expected_classes: &Matrix<T>) -> 
 /// Splits inputs into batches of a specific size.
 /// The last batch may be shorter if there are not enough inputs.
 pub fn batch<T: Float>(inputs: &Matrix<T>, batch_size: u32) -> Vec<Matrix<T>> {
+    if batch_size >= inputs.get_m() {
+        return vec![inputs.clone()];
+    }
+
     let mut result = Vec::with_capacity((inputs.get_m() / batch_size) as usize);
     for batch in 0..(inputs.get_m() / batch_size) {
         result.push(inputs.get_sub_matrix(batch * batch_size, 0, batch_size, inputs.get_n()));
     }
     if inputs.get_m() % batch_size != 0 {
         let rows_processed = (inputs.get_m() / batch_size) * batch_size;
-        result.push(inputs.get_sub_matrix(rows_processed, 0, inputs.get_m() - rows_processed, inputs.get_n()));
+        result.push(inputs.get_sub_matrix(
+            rows_processed,
+            0,
+            inputs.get_m() - rows_processed,
+            inputs.get_n(),
+        ));
     }
 
     result
@@ -122,6 +144,11 @@ pub fn split<T: Float>(inputs: &Matrix<T>, distribution: &Vec<f32>) -> Vec<Matri
     results
 }
 
+/// Returns the first n rows of the matrix.
+pub fn first_rows<T: Float>(matrix: &Matrix<T>, n_rows: u32) -> Matrix<T> {
+    matrix.get_sub_matrix(0, 0, n_rows, matrix.get_n())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -160,7 +187,7 @@ mod tests {
     fn unclassify_correct() {
         for i in 0..unclassify_inputs().len() {
             assert_eq!(
-                unclassify(&unclassify_inputs()[i]),
+                unclassify_auto(&unclassify_inputs()[i]),
                 unclassify_outputs()[i],
                 "test case {}",
                 i
@@ -212,12 +239,7 @@ mod tests {
             let (inputs, row_1, row_2) = &swap_row_inputs()[i];
             let mut outputs = inputs.clone();
             swap_row(&mut outputs, *row_1, *row_2);
-            assert_eq!(
-                outputs,
-                swap_row_outputs()[i],
-                "test case {}",
-                i
-            );
+            assert_eq!(outputs, swap_row_outputs()[i], "test case {}", i);
         }
     }
 

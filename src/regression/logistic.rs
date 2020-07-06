@@ -1,6 +1,6 @@
 use crate::matrix::{Float, Matrix};
 use crate::regression::common::{add_zero_feature, train_gradient_descent_feature_scaling};
-use crate::util::{sigmoid, LEARNING_RATE_INCREASE, LEARNING_RATE_DECREASE};
+use crate::util::{sigmoid, LEARNING_RATE_DECREASE, LEARNING_RATE_INCREASE};
 
 /// A logistic regression problem solver.
 /// It needs to be trained before it can make predictions.
