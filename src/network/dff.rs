@@ -33,7 +33,7 @@ impl<T: Float> TrainParameters<T> {
     }
 }
 
-pub trait DFFNetwork<T: Float>: Clone {
+pub trait DFFNetwork<T: Float>: Clone + std::marker::Send + std::marker::Sync {
     /// Trains the neural network with the given input and output data (test dataset).
     fn train(
         &mut self,

@@ -11,6 +11,8 @@ pub trait Float:
     + num_traits::NumAssignOps
     + fmt::Debug
     + fmt::Display
+    + std::marker::Send
+    + std::marker::Sync
     + 'static
 {
 }
@@ -21,6 +23,8 @@ impl<
             + num_traits::NumAssignOps
             + fmt::Debug
             + fmt::Display
+            + std::marker::Send
+            + std::marker::Sync
             + 'static,
     > Float for T
 {
