@@ -25,7 +25,7 @@ fn matrix_zero_1000_1000(bench: &mut Bencher) {
 }
 
 fn load_idx_mnist_train_labels(bench: &mut Bencher) {
-    let data = fs::read("datasets/mnist/train-labels-idx1-ubyte").unwrap();
+    let data = fs::read("datasets/mnist/train-labels.idx1-ubyte").unwrap();
     bench.iter(|| {
         let matrix = load_idx::<f32>(&data).unwrap();
         black_box(matrix.sum());
@@ -33,7 +33,7 @@ fn load_idx_mnist_train_labels(bench: &mut Bencher) {
 }
 
 fn load_idx_mnist_test_images(bench: &mut Bencher) {
-    let data = fs::read("datasets/mnist/t10k-images-idx3-ubyte").unwrap();
+    let data = fs::read("datasets/mnist/t10k-images.idx3-ubyte").unwrap();
     bench.iter(|| {
         let matrix = load_idx::<f32>(&data).unwrap();
         black_box(matrix.sum());
