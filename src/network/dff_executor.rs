@@ -20,7 +20,6 @@ pub fn train_parallel<T: Float, D: DFFNetwork<T>>(
             }
         })
         .collect();
-    dbg!(&regularization_factors);
     let mut trained_networks: Vec<D> = regularization_factors
         .par_iter()
         .map(move |x| {
