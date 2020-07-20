@@ -1,0 +1,3 @@
+[submodule "datasets/mnist_ext"]
+	path = datasets/mnist_ext
+	url = https://github.com/mrgloom/MNIST-dataset-in-different-formats.git

@@ -6,18 +6,18 @@ use std::fs;
 
 fn main() {
     let train_images = first_rows(
-        &load_idx::<f32>(&fs::read("datasets/mnist/train-images-idx3-ubyte").unwrap()).unwrap(),
+        &load_idx::<f32>(&fs::read("datasets/mnist/train-images.idx3-ubyte").unwrap()).unwrap(),
         5000,
     );
     let train_labels = first_rows(
-        &load_idx::<f32>(&fs::read("datasets/mnist/train-labels-idx1-ubyte").unwrap())
+        &load_idx::<f32>(&fs::read("datasets/mnist/train-labels.idx1-ubyte").unwrap())
             .unwrap()
             .map(|x| x + 1.0),
         5000,
     );
     let t10k_images =
-        load_idx::<f32>(&fs::read("datasets/mnist/t10k-images-idx3-ubyte").unwrap()).unwrap();
-    let t10k_labels = load_idx::<f32>(&fs::read("datasets/mnist/t10k-labels-idx1-ubyte").unwrap())
+        load_idx::<f32>(&fs::read("datasets/mnist/t10k-images.idx3-ubyte").unwrap()).unwrap();
+    let t10k_labels = load_idx::<f32>(&fs::read("datasets/mnist/t10k-labels.idx1-ubyte").unwrap())
         .unwrap()
         .map(|x| x + 1.0);
 
