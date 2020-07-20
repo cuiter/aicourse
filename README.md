@@ -2,36 +2,41 @@
 
 My take on Andrew Ng's great [Machine Learning](https://www.youtube.com/watch?v=PPLop4L2eGk&list=PLLssT5z_DsK-h9vYZkQkYNWcItqhlRJLN&index=1) couse.
 
-This is a project where I'll be developing ML solutions from scratch (no
-algebra / ML libraries used) in Rust.
-My goal is to learn about how ML works on a deep level.
-In addition, I also want to improve my Test-Driven Development and Rust
-skillset.
+I'll be developing ML solutions from scratch (no external algebra / ML
+libraries required) in Rust.
+The goal is to learn about how ML works on a deep level.
 
 The solutions in this project serve as an example, and are probably not the
-most correct or efficient solution to the problem. It could be more easy to
-understand than other implementations, given this is written by someone with
-little practical experience in machine learning.
+most correct or efficient solution to the problem. Perhaps it is more readable
+than other implementations, given this is written by someone who has recently
+started learning about machine learning.
+
+To see a working neural network in action, clone the project including
+submodules and run:
+`cargo run --release`
+
+This will train a network to classify handwritten digits using the MNIST
+dataset.
 
 # Progress
 
 ## Lecture 1-4
 
-There is a Matrix struct that represents a linear algebra matrix.
-It has methods for addition, multiplication, inversion amongst other
-fundamental operators.
+There is a linear algebra Matrix implementation with methods for addition,
+multiplication, inversion amongst other fundamental operators.
 
-Both gradient descent and normal equation methods are implemented for solving
-the multivariate linear regression problem.
+The multivariate linear regression problem can be solved with both gradient
+descent and normal equation methods.
 
 The gradient descent implementation "learns" the optimal learning rate by
 increasing the learning rate when the new cost is less than the current cost,
 and decreasing it when the new cost is higher.
-The convergence threshold is currently hardcoded, but precise enough for >99%
-accuracy using the datasets in the examples.
+The convergence threshold is currently hardcoded, but precise enough for
+the datasets in the examples.
 
 The normal equation method can fail on some datasets because singular value
-decomposition (SVD) is not implemented for calculating the pseudo-inverse.
+decomposition (SVD) is not implemented for calculating the pseudo-inverse of a
+matrix.
 
 Polynomial regression is implemented by letting the user pass a transformation
 function which transforms the input into the inputs used by the learning
@@ -46,10 +51,14 @@ certain whether the logistic regression regularization methods are correct.
 ## Lecture 8-9
 
 A deep feed-forward neural network using the logistic sigmoid activation
-function is implemented and works. It's not clear whether regularization works
-correctly, and it can be quite slow. Nonetheless, in testing it is quite
-promising.
+function is implemented. It's not clear whether regularization works
+correctly, but the behaviour seems to match the lectures.
 
-After training a [28 * 28, 256, 10] unit network with the first 1000 samples of
-the MNIST train dataset (yes, it's slow), it is able to classify the MNIST
-test dataset with an accuracy of >75% after 20 epochs.
+The network can be trained with different regularization
+parameters in parallel. Proper splitting up of train / cross-validation / test
+datasets is not implemented yet, so the results can be skewed.
+
+After training a [28 * 28, 256, 10] unit network in parallel for
+~70 epochs with the first 5000 samples of the MNIST train dataset, it is able
+to classify the MNIST test dataset with an accuracy of ~92%. This takes
+approximately 7 minutes with a Ryzen 5 1600 CPU.
