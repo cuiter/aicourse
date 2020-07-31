@@ -3,13 +3,43 @@ use std::convert::TryInto;
 use std::io::{Error, ErrorKind, Result};
 
 #[derive(Copy, Clone)]
-enum DataType {
+pub enum DataType {
     U8,
     I8,
     I16,
     I32,
     F32,
     F64,
+}
+
+impl DataType {
+    fn from_u8(code: u8) -> Result<Self> {
+        match code {
+            0x08 => Ok(DataType::U8),
+            0x09 => Ok(DataType::I8),
+            0x0B => Ok(DataType::I16),
+            0x0C => Ok(DataType::I32),
+            0x0D => Ok(DataType::F32),
+            0x0E => Ok(DataType::F64),
+            _ => {
+                return Err(Error::new(
+                    ErrorKind::InvalidData,
+                    "magic number type is invalid",
+                ))
+            }
+        }
+    }
+
+    fn to_u8(&self) -> u8 {
+        match self {
+            DataType::U8 => 0x08,
+            DataType::I8 => 0x09,
+            DataType::I16 => 0x0B,
+            DataType::I32 => 0x0C,
+            DataType::F32 => 0x0D,
+            DataType::F64 => 0x0E,
+        }
+    }
 }
 
 #[derive(Copy, Clone)]
@@ -26,6 +56,17 @@ fn data_type_size(data_type: DataType) -> usize {
         DataType::I32 => 4,
         DataType::F32 => 4,
         DataType::F64 => 8,
+    }
+}
+
+fn write_element<T: Float>(data: &mut Vec<u8>, value: T, data_type: DataType) {
+    match data_type {
+        DataType::U8 => data.push(value.to_u8().unwrap()),
+        DataType::I8 => data.push(value.to_i8().unwrap() as u8),
+        DataType::I16 => data.extend_from_slice(&value.to_i16().unwrap().to_be_bytes()),
+        DataType::I32 => data.extend_from_slice(&value.to_i32().unwrap().to_be_bytes()),
+        DataType::F32 => data.extend_from_slice(&value.to_f32().unwrap().to_bits().to_be_bytes()),
+        DataType::F64 => data.extend_from_slice(&value.to_f64().unwrap().to_bits().to_be_bytes()),
     }
 }
 
@@ -81,20 +122,7 @@ fn read_magic_number(data: &Vec<u8>) -> Result<MagicNumber> {
         ));
     }
 
-    let data_type = match data[2] {
-        0x08 => DataType::U8,
-        0x09 => DataType::I8,
-        0x0B => DataType::I16,
-        0x0C => DataType::I32,
-        0x0D => DataType::F32,
-        0x0E => DataType::F64,
-        _ => {
-            return Err(Error::new(
-                ErrorKind::InvalidData,
-                "magic number type is invalid",
-            ))
-        }
-    };
+    let data_type = DataType::from_u8(data[2])?;
     let dimensions = match data[3] {
         0 => {
             return Err(Error::new(
@@ -166,6 +194,21 @@ pub fn load_idx<T: Float>(data: &Vec<u8>) -> Result<Matrix<T>> {
     read_matrix_data(data, magic, &dimension_sizes)
 }
 
+/// Writes the matrix data to a byte array in the IDX format.
+pub fn write_idx<T: Float>(matrix: &Matrix<T>, data_type: DataType) -> Vec<u8> {
+    let mut data = vec![
+        0x00, 0x00,
+        data_type.to_u8(),
+        2 // Two-dimensional matrix.
+    ];
+    data.extend_from_slice(&matrix.get_m().to_be_bytes());
+    data.extend_from_slice(&matrix.get_n().to_be_bytes());
+    for value in matrix.iter() {
+        write_element(&mut data, *value, data_type);
+    }
+    data
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -187,6 +230,45 @@ mod tests {
         for i in 0..inputs.len() {
             let output = load_idx::<f64>(&inputs[i]);
             assert!(output.is_err());
+        }
+    }
+
+    #[test]
+    fn write_idx_correct() {
+        // Re-using data from other tests.
+        use crate::testdata::{
+            util::{classify_outputs, batch_inputs},
+        };
+        let inputs: Vec<Matrix<f64>> =
+            classify_outputs().clone().into_iter()
+            .chain(batch_inputs().clone())
+            .collect();
+        for i in 0..inputs.len() {
+            for data_type in [DataType::U8, DataType::I8, DataType::I16, DataType::I32, DataType::F32, DataType::F64].iter() {
+                let written_idx = write_idx(&inputs[i], *data_type);
+                let output = load_idx::<f64>(&written_idx).unwrap();
+                assert_eq!(inputs[i], output);
+            }
+        }
+    }
+
+    #[test]
+    fn write_idx_correct_f64() {
+        // Re-using data from other tests.
+        use crate::testdata::{
+            util::{classify_inputs},
+            logreg, logregm
+        };
+        let inputs: Vec<Matrix<f64>> =
+            classify_inputs().clone().into_iter()
+            .chain(logreg::tests_inputs().clone())
+            .chain(logregm::tests_inputs().clone())
+            .collect();
+
+        for i in 0..inputs.len() {
+            let written_idx = write_idx(&inputs[i], DataType::F64);
+            let output = load_idx::<f64>(&written_idx).unwrap();
+            assert_eq!(inputs[i], output);
         }
     }
 }
