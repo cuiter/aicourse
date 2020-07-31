@@ -194,12 +194,13 @@ pub fn load_idx<T: Float>(data: &Vec<u8>) -> Result<Matrix<T>> {
     read_matrix_data(data, magic, &dimension_sizes)
 }
 
-/// Writes the matrix data to a byte array in the IDX format.
-pub fn write_idx<T: Float>(matrix: &Matrix<T>, data_type: DataType) -> Vec<u8> {
+/// Returns the matrix data as a byte array in the IDX format.
+pub fn save_idx<T: Float>(matrix: &Matrix<T>, data_type: DataType) -> Vec<u8> {
     let mut data = vec![
-        0x00, 0x00,
+        0x00,
+        0x00,
         data_type.to_u8(),
-        2 // Two-dimensional matrix.
+        2, // Two-dimensional matrix.
     ];
     data.extend_from_slice(&matrix.get_m().to_be_bytes());
     data.extend_from_slice(&matrix.get_n().to_be_bytes());
@@ -216,8 +217,8 @@ mod tests {
 
     #[test]
     fn load_idx_ok() {
-        let inputs = data_inputs();
-        let expected_outputs = matrix_outputs();
+        let inputs = load_idx_inputs();
+        let expected_outputs = load_idx_outputs();
         for i in 0..inputs.len() {
             let output = load_idx(&inputs[i]).unwrap();
             assert_eq!(output, expected_outputs[i]);
@@ -226,7 +227,7 @@ mod tests {
 
     #[test]
     fn load_idx_error() {
-        let inputs = wrong_data_inputs();
+        let inputs = load_idx_wrong_inputs();
         for i in 0..inputs.len() {
             let output = load_idx::<f64>(&inputs[i]);
             assert!(output.is_err());
@@ -234,18 +235,20 @@ mod tests {
     }
 
     #[test]
-    fn write_idx_correct() {
-        // Re-using data from other tests.
-        use crate::testdata::{
-            util::{classify_outputs, batch_inputs},
-        };
-        let inputs: Vec<Matrix<f64>> =
-            classify_outputs().clone().into_iter()
-            .chain(batch_inputs().clone())
-            .collect();
+    fn save_idx_correct() {
+        let inputs = save_idx_inputs();
         for i in 0..inputs.len() {
-            for data_type in [DataType::U8, DataType::I8, DataType::I16, DataType::I32, DataType::F32, DataType::F64].iter() {
-                let written_idx = write_idx(&inputs[i], *data_type);
+            for data_type in [
+                DataType::U8,
+                DataType::I8,
+                DataType::I16,
+                DataType::I32,
+                DataType::F32,
+                DataType::F64,
+            ]
+            .iter()
+            {
+                let written_idx = save_idx(&inputs[i], *data_type);
                 let output = load_idx::<f64>(&written_idx).unwrap();
                 assert_eq!(inputs[i], output);
             }
@@ -253,20 +256,10 @@ mod tests {
     }
 
     #[test]
-    fn write_idx_correct_f64() {
-        // Re-using data from other tests.
-        use crate::testdata::{
-            util::{classify_inputs},
-            logreg, logregm
-        };
-        let inputs: Vec<Matrix<f64>> =
-            classify_inputs().clone().into_iter()
-            .chain(logreg::tests_inputs().clone())
-            .chain(logregm::tests_inputs().clone())
-            .collect();
-
+    fn save_idx_correct_f64() {
+        let inputs = save_idx_inputs_f64();
         for i in 0..inputs.len() {
-            let written_idx = write_idx(&inputs[i], DataType::F64);
+            let written_idx = save_idx(&inputs[i], DataType::F64);
             let output = load_idx::<f64>(&written_idx).unwrap();
             assert_eq!(inputs[i], output);
         }
