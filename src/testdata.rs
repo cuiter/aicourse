@@ -178,7 +178,7 @@ pub mod util {
 
 pub mod idx {
     use super::*;
-    pub fn data_inputs() -> Vec<Vec<u8>> {
+    pub fn load_idx_inputs() -> Vec<Vec<u8>> {
         vec![
             vec![0, 0, 0x08, 1, 0, 0, 0, 1, 96],
             vec![0, 0, 0x09, 1, 0, 0, 0, 1, 160],
@@ -191,7 +191,7 @@ pub mod idx {
             vec![0, 0, 0x08, 3, 0, 0, 0, 2, 0, 0, 0, 2, 0, 0, 0, 2, 1, 2, 255, 127, 5, 4, 3, 2],
         ]
     }
-    pub fn matrix_outputs() -> Vec<Matrix<f64>> {
+    pub fn load_idx_outputs() -> Vec<Matrix<f64>> {
         vec![
             Matrix::new(1, 1, vec![96.0]),
             Matrix::new(1, 1, vec![-96.0]),
@@ -207,7 +207,7 @@ pub mod idx {
                                    5.0, 4.0, 3.0, 2.0]),
         ]
     }
-    pub fn wrong_data_inputs() -> Vec<Vec<u8>> {
+    pub fn load_idx_wrong_inputs() -> Vec<Vec<u8>> {
         vec![
             vec![],
             vec![1, 0, 0x08, 1, 0, 0, 0, 1, 69],
@@ -215,6 +215,27 @@ pub mod idx {
             vec![0, 0, 0x08, 1, 0, 0, 0, 2, 69],
             vec![0, 0, 0x99, 2, 0, 0, 0, 2, 0, 0, 0, 2, 1, 2, 3, 128],
             vec![0, 0, 0x0B, 2, 0, 0, 0, 0, 0, 0, 0, 2, 0, 1, 0, 2, 255, 255, 127, 255],
+        ]
+    }
+    pub fn save_idx_inputs() -> Vec<Matrix<f64>> {
+        // Elements must be in the integer range of 0-127 to be representable in all data types.
+        vec![
+            Matrix::new(2, 2, vec![1.0, 2.0,
+                                   3.0, 127.0]),
+            Matrix::new(2, 4, vec![1.0, 2.0, 25.0, 27.0,
+                                   5.0, 4.0, 3.0, 2.0]),
+            Matrix::new(3, 3, vec![1.0, 2.0, 25.0,
+                                   5.0, 4.0, 3.0,
+                                   8.0, 9.0, 10.0]),
+        ]
+    }
+    pub fn save_idx_inputs_f64() -> Vec<Matrix<f64>> {
+        vec![
+            Matrix::new(2, 4, vec![1.25, 0.2333, 25.7, 28.0,
+                                   5.0, 4.8, 3.9, 9.0]),
+            Matrix::new(3, 3, vec![1.0, -2.0, 25.0,
+                                   std::f64::INFINITY, std::f64::NEG_INFINITY, -0.0,
+                                   8.0, 9.0, 10.0]),
         ]
     }
 }
