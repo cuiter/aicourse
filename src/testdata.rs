@@ -174,6 +174,25 @@ pub mod util {
                                     7.0, 17.0]),
         ]
     }
+    pub fn mux_matrices_inputs() -> Vec<Vec<Matrix<f64>>> {
+        vec![
+            vec![
+                Matrix::new(3, 2, vec![1.0, 2.0,
+                                       3.0, 4.0,
+                                       5.0, 6.0]),
+                Matrix::new(1, 5, vec![1.0, 2.0, 3.0, 4.0, 5.0])
+            ]
+        ]
+    }
+    pub fn mux_matrices_outputs() -> Vec<Matrix<f64>> {
+        vec![
+            Matrix::new(5, 5, vec![3.0, 2.0, 1.0, 5.0, 0.0,
+                                   1.0, 2.0, 0.0, 0.0, 0.0,
+                                   3.0, 4.0, 0.0, 0.0, 0.0,
+                                   5.0, 6.0, 0.0, 0.0, 0.0,
+                                   1.0, 2.0, 3.0, 4.0, 5.0]),
+        ]
+    }
 }
 
 pub mod idx {
