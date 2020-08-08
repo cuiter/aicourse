@@ -3,6 +3,7 @@ name = "aicourse"
 version = "0.1.0"
 authors = ["cuiter <casper.uiterwijk@gmail.com>"]
 edition = "2018"
+default-run = "train"
 
 [features]
 default = [ "use_ndarray" ]

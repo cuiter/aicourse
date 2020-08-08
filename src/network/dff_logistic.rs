@@ -1,7 +1,7 @@
 use crate::matrix::{Float, Matrix};
 pub use crate::network::dff::{CostMethod, DFFNetwork, TrainParameters};
 use crate::util::{
-    accuracy, batch, classify, sigmoid, unclassify, LEARNING_RATE_DECREASE, LEARNING_RATE_INCREASE,
+    accuracy, batch, classify, sigmoid, unclassify, demux_matrices, mux_matrices, LEARNING_RATE_DECREASE, LEARNING_RATE_INCREASE,
 };
 use rand::{Rng, SeedableRng};
 
@@ -93,6 +93,16 @@ impl<T: Float> NeuralNetwork<T> {
     /// Creates a new neural network from an existing configuration.
     fn from_configuration(configuration: Vec<Matrix<T>>) -> NeuralNetwork<T> {
         NeuralNetwork { configuration }
+    }
+
+    /// Loads a configuration from the specified matrix.
+    pub fn load(config_mat: &Matrix<T>) -> NeuralNetwork<T> {
+        NeuralNetwork { configuration: demux_matrices(config_mat) }
+    }
+
+    /// Saves a configuration to a matrix.
+    pub fn save(&self) -> Matrix<T> {
+        mux_matrices(&self.configuration)
     }
 
     /// Clones the configuration structure of the neural network and sets it to zero.

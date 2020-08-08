@@ -149,6 +149,54 @@ pub fn first_rows<T: Float>(matrix: &Matrix<T>, n_rows: u32) -> Matrix<T> {
     matrix.get_sub_matrix(0, 0, n_rows, matrix.get_n())
 }
 
+/// Muxes multiple matrices into one.
+pub fn mux_matrices<T: Float>(matrices: &Vec<Matrix<T>>) -> Matrix<T> {
+    let mut result = Matrix::zero(1, matrices.len() as u32 * 2);
+    for (idx, matrix) in matrices.iter().enumerate() {
+        result[(0, idx as u32 * 2)] = T::from_u32(matrix.get_m()).unwrap();
+        result[(0, idx as u32 * 2 + 1)] = T::from_u32(matrix.get_n()).unwrap();
+    }
+
+    for new_matrix in matrices.iter() {
+        let mut matrix = new_matrix.clone();
+        if result.get_n() < matrix.get_n() {
+            result = result.h_concat(&Matrix::zero(result.get_m(), matrix.get_n() - result.get_n()));
+        }
+        if matrix.get_n() != result.get_n() {
+            matrix = matrix.h_concat(&Matrix::zero(matrix.get_m(), result.get_n() - matrix.get_n()));
+        }
+        result = result.v_concat(&matrix);
+    }
+
+    result
+}
+
+/// Demuxes a single matrix into multiple.
+pub fn demux_matrices<T: Float>(matrix: &Matrix<T>) -> Vec<Matrix<T>> {
+    // The first row contains the sizes of the matrices.
+    // Example: [ 2 3 3 5 ], the first matrix has 2 rows and 3 columns, the second 3 rows and 5
+    // columns.
+    // The proceeding rows are the matrices, vertically concatenated.
+    // Trailing columns may occur.
+    let mut matrix_sizes: Vec<(u32, u32)> = vec![];
+    for n in (0..matrix.get_n()).step_by(2) {
+        if matrix[(0, n)] == T::zero() {
+            break;
+        }
+
+        matrix_sizes.push((matrix[(0, n)].to_u32().unwrap(), matrix[(0, n + 1)].to_u32().unwrap()));
+    }
+
+    let mut matrices = vec![];
+    let mut m = 1;
+    for matrix_size in matrix_sizes {
+        matrices.push(matrix.get_sub_matrix(m, 0, matrix_size.0, matrix_size.1));
+        m += matrix_size.0;
+    }
+
+    matrices
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -252,6 +300,32 @@ mod tests {
             assert_eq!(
                 shuffle(&inputs, &mut rng),
                 shuffle_outputs()[i],
+                "test case {}",
+                i
+            );
+        }
+    }
+
+    #[test]
+    fn mux_matrices_correct() {
+        for i in 0..mux_matrices_inputs().len() {
+            let inputs = &mux_matrices_inputs()[i];
+            assert_eq!(
+                mux_matrices(&inputs),
+                mux_matrices_outputs()[i],
+                "test case {}",
+                i
+            );
+        }
+    }
+
+    #[test]
+    fn demux_matrices_correct() {
+        for i in 0..mux_matrices_outputs().len() {
+            let inputs = &mux_matrices_outputs()[i];
+            assert_eq!(
+                demux_matrices(&inputs),
+                mux_matrices_inputs()[i],
                 "test case {}",
                 i
             );

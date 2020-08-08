@@ -1,4 +1,4 @@
-use aicourse::matrix::load_idx;
+use aicourse::matrix::*;
 use aicourse::network::dff_executor;
 use aicourse::network::dff_logistic::*;
 use aicourse::util::{accuracy, first_rows};
@@ -29,7 +29,7 @@ fn main() {
         t10k_labels.get_dimensions(),
     );
 
-    let network = NeuralNetwork::<f32>::new(vec![28 * 28, 256, 10]);
+    let network = NeuralNetwork::<f32>::new(vec![28 * 28, 64, 10]);
     let mut seq_network = network.clone();
     let mut train_params = TrainParameters::defaults();
     train_params.show_progress = true;
@@ -37,6 +37,7 @@ fn main() {
     train_params.batch_size = 16;
     seq_network.train(&train_images, &train_labels, train_params.clone());
     let par_network =
+        //NeuralNetwork::<f32>::load(&load_idx(&fs::read("network.idx").unwrap()).unwrap());
         dff_executor::train_parallel(&network, &train_images, &train_labels, train_params.clone());
 
     println!(
@@ -49,4 +50,6 @@ fn main() {
         accuracy(&par_network.run(&train_images), &train_labels),
         accuracy(&par_network.run(&t10k_images), &t10k_labels)
     );
+
+    //fs::write("network.idx", save_idx(&par_network.save(), DataType::F32)).unwrap();
 }
