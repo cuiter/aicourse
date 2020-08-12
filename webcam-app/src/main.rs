@@ -1,10 +1,13 @@
+mod font;
+
 use aicourse::matrix::*;
 use aicourse::network::dff::DFFNetwork;
 use aicourse::network::dff_logistic::NeuralNetwork;
+use font::draw_digit;
 use sdl2::event::Event;
 use sdl2::keyboard::Keycode;
 use sdl2::pixels::{Color, PixelFormatEnum};
-use sdl2::rect::Rect;
+use sdl2::rect::{Point, Rect};
 use sdl2::render::{Canvas, Texture};
 use sdl2::surface::Surface;
 use sdl2::video::Window;
@@ -59,9 +62,10 @@ fn write_fdisp<T: Float>(fdisp_buffer: &mut [u8], focus_matrix: &Matrix<T>) {
     for y in 0..FOCUS_HEIGHT {
         for x in 0..FOCUS_WIDTH {
             let idx = (x * FOCUS_WIDTH + y) as usize;
-            fdisp_buffer[idx * 4 + 0] = focus_matrix[(0, idx as u32)].to_u8().unwrap();
-            fdisp_buffer[idx * 4 + 1] = focus_matrix[(0, idx as u32)].to_u8().unwrap();
-            fdisp_buffer[idx * 4 + 2] = focus_matrix[(0, idx as u32)].to_u8().unwrap();
+            let pixel = focus_matrix[(0, idx as u32)].to_u8().unwrap();
+            fdisp_buffer[idx * 4 + 0] = pixel;
+            fdisp_buffer[idx * 4 + 1] = pixel;
+            fdisp_buffer[idx * 4 + 2] = pixel;
         }
     }
 }
@@ -78,15 +82,29 @@ fn contrast_stretch<T: Float>(matrix: &Matrix<T>, bottom: T, top: T) -> Matrix<T
         }
     }
 
-    matrix.map(|value| bottom + ((value - min) / (max - min)) * (top - bottom))
+    if min != max {
+        matrix.map(|value| bottom + ((value - min) / (max - min)) * (top - bottom))
+    } else {
+        matrix.map(|_| (min + max) / T::from_u8(2).unwrap())
+    }
 }
 
 fn preprocess_focus<T: Float>(focus_matrix: &Matrix<T>) -> Matrix<T> {
-    contrast_stretch(
+    let stretched = contrast_stretch(
         &focus_matrix,
         T::from_u8(0).unwrap(),
         T::from_u8(255).unwrap(),
-    )
+    );
+
+    let thresh_value = 127;
+    let threshed = stretched.map(|value| {
+        if value > T::from_u8(thresh_value).unwrap() {
+            T::from_u8(255).unwrap()
+        } else {
+            T::zero()
+        }
+    });
+    threshed
 }
 
 pub fn main() {
@@ -100,6 +118,8 @@ pub fn main() {
         200,
         200,
     );
+    let prediction_position = Point::new(IMG_WIDTH as i32 / 2 + 150, IMG_HEIGHT as i32 / 2 - 40);
+    let prediction_scale = 12;
     camera
         .start(&rscam::Config {
             interval: (1, 30),
@@ -135,6 +155,17 @@ pub fn main() {
 
     let mut event_pump = sdl_context.event_pump().unwrap();
     'running: loop {
+        for event in event_pump.poll_iter() {
+            match event {
+                Event::Quit { .. }
+                | Event::KeyDown {
+                    keycode: Some(Keycode::Escape),
+                    ..
+                } => break 'running,
+                _ => {}
+            }
+        }
+
         let frame = camera.capture().unwrap();
         convert_frame(&frame, &mut frame_buffer);
         frame_texture
@@ -152,6 +183,7 @@ pub fn main() {
             .unwrap();
 
         focus_matrix = preprocess_focus(&focus_matrix);
+
         write_fdisp(&mut fdisp_buffer, &focus_matrix);
         fdisp_texture
             .update(None, &fdisp_buffer, (FOCUS_WIDTH * 4) as usize)
@@ -164,18 +196,14 @@ pub fn main() {
             .unwrap();
         draw_fdisp(&mut canvas, &fdisp_texture, focus_area);
 
-        for event in event_pump.poll_iter() {
-            match event {
-                Event::Quit { .. }
-                | Event::KeyDown {
-                    keycode: Some(Keycode::Escape),
-                    ..
-                } => break 'running,
-                _ => {}
-            }
-        }
-
-        println!("Prediction: {}", network.run(&focus_matrix)[(0, 0)] - 1.0);
+        let prediction: u32 = network.run(&focus_matrix)[(0, 0)] as u32 - 1;
+        draw_digit(
+            &mut canvas,
+            prediction_position,
+            prediction_scale,
+            Color::RGB(0, 255, 0),
+            prediction,
+        );
 
         canvas.present();
         ::std::thread::sleep(Duration::new(0, 1_000_000_000u32 / 60));
