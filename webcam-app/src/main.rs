@@ -25,9 +25,8 @@ fn convert_frame(frame: &[u8], display_frame: &mut [u8]) {
     }
 }
 
-// TODO: Figure out how to draw the matrix contents itself.
-fn draw_focus(canvas: &mut Canvas<Window>, focus_texture: &Texture, focus_area: Rect) {
-    canvas.copy(&focus_texture, None, focus_area).unwrap();
+fn draw_fdisp(canvas: &mut Canvas<Window>, fdisp_texture: &Texture, focus_area: Rect) {
+    canvas.copy(&fdisp_texture, None, focus_area).unwrap();
     canvas.set_draw_color(Color::RGB(255, 0, 0));
     canvas.draw_rect(focus_area).unwrap();
 }
@@ -56,6 +55,17 @@ fn extract_focus<T: Float>(
     }
 }
 
+fn write_fdisp<T: Float>(fdisp_buffer: &mut [u8], focus_matrix: &Matrix<T>) {
+    for y in 0..FOCUS_HEIGHT {
+        for x in 0..FOCUS_WIDTH {
+            let idx = (x * FOCUS_WIDTH + y) as usize;
+            fdisp_buffer[idx * 4 + 0] = focus_matrix[(0, idx as u32)].to_u8().unwrap();
+            fdisp_buffer[idx * 4 + 1] = focus_matrix[(0, idx as u32)].to_u8().unwrap();
+            fdisp_buffer[idx * 4 + 2] = focus_matrix[(0, idx as u32)].to_u8().unwrap();
+        }
+    }
+}
+
 fn contrast_stretch<T: Float>(matrix: &Matrix<T>, bottom: T, top: T) -> Matrix<T> {
     let mut min = T::infinity();
     let mut max = T::zero();
@@ -69,6 +79,14 @@ fn contrast_stretch<T: Float>(matrix: &Matrix<T>, bottom: T, top: T) -> Matrix<T
     }
 
     matrix.map(|value| bottom + ((value - min) / (max - min)) * (top - bottom))
+}
+
+fn preprocess_focus<T: Float>(focus_matrix: &Matrix<T>) -> Matrix<T> {
+    contrast_stretch(
+        &focus_matrix,
+        T::from_u8(0).unwrap(),
+        T::from_u8(255).unwrap(),
+    )
 }
 
 pub fn main() {
@@ -102,8 +120,8 @@ pub fn main() {
 
     let mut canvas = window.into_canvas().build().unwrap();
     let texture_creator = canvas.texture_creator();
-
     assert!(PixelFormatEnum::RGB888.byte_size_per_pixel() == 4);
+
     let frame_surface = Surface::new(IMG_WIDTH, IMG_HEIGHT, PixelFormatEnum::RGB888).unwrap();
     let mut frame_texture = Texture::from_surface(&frame_surface, &texture_creator).unwrap();
     let mut frame_buffer = [0u8; (IMG_WIDTH * IMG_HEIGHT * 4) as usize];
@@ -111,6 +129,9 @@ pub fn main() {
         .create_texture_target(PixelFormatEnum::RGB888, FOCUS_WIDTH, FOCUS_HEIGHT)
         .unwrap();
     let mut focus_matrix = Matrix::zero(1, FOCUS_WIDTH * FOCUS_HEIGHT);
+    let fdisp_surface = Surface::new(FOCUS_WIDTH, FOCUS_HEIGHT, PixelFormatEnum::RGB888).unwrap();
+    let mut fdisp_texture = Texture::from_surface(&fdisp_surface, &texture_creator).unwrap();
+    let mut fdisp_buffer = [0u8; (FOCUS_WIDTH * FOCUS_HEIGHT * 4) as usize];
 
     let mut event_pump = sdl_context.event_pump().unwrap();
     'running: loop {
@@ -130,12 +151,18 @@ pub fn main() {
             })
             .unwrap();
 
+        focus_matrix = preprocess_focus(&focus_matrix);
+        write_fdisp(&mut fdisp_buffer, &focus_matrix);
+        fdisp_texture
+            .update(None, &fdisp_buffer, (FOCUS_WIDTH * 4) as usize)
+            .unwrap();
+
         canvas.set_draw_color(Color::RGB(0, 0, 0));
         canvas.clear();
         canvas
             .copy(&frame_texture, None, Rect::new(0, 0, IMG_WIDTH, IMG_HEIGHT))
             .unwrap();
-        draw_focus(&mut canvas, &focus_texture, focus_area);
+        draw_fdisp(&mut canvas, &fdisp_texture, focus_area);
 
         for event in event_pump.poll_iter() {
             match event {
@@ -148,10 +175,7 @@ pub fn main() {
             }
         }
 
-        println!(
-            "Prediction: {}",
-            network.run(&contrast_stretch(&focus_matrix, 0.0, 255.0))[(0, 0)] - 1.0
-        );
+        println!("Prediction: {}", network.run(&focus_matrix)[(0, 0)] - 1.0);
 
         canvas.present();
         ::std::thread::sleep(Duration::new(0, 1_000_000_000u32 / 60));
