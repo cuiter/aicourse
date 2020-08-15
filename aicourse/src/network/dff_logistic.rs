@@ -1,7 +1,8 @@
 use crate::matrix::{Float, Matrix};
 pub use crate::network::dff::{CostMethod, DFFNetwork, TrainParameters};
 use crate::util::{
-    accuracy, batch, classify, sigmoid, unclassify, demux_matrices, mux_matrices, LEARNING_RATE_DECREASE, LEARNING_RATE_INCREASE,
+    accuracy, batch, classify, demux_matrices, mux_matrices, sigmoid, unclassify,
+    LEARNING_RATE_DECREASE, LEARNING_RATE_INCREASE,
 };
 use rand::{Rng, SeedableRng};
 
@@ -97,7 +98,9 @@ impl<T: Float> NeuralNetwork<T> {
 
     /// Loads a configuration from the specified matrix.
     pub fn load(config_mat: &Matrix<T>) -> NeuralNetwork<T> {
-        NeuralNetwork { configuration: demux_matrices(config_mat) }
+        NeuralNetwork {
+            configuration: demux_matrices(config_mat),
+        }
     }
 
     /// Saves a configuration to a matrix.

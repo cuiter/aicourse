@@ -108,8 +108,7 @@ fn preprocess_focus<T: Float>(focus_matrix: &Matrix<T>) -> Matrix<T> {
 }
 
 pub fn main() {
-    let network =
-        NeuralNetwork::load(&load_idx::<f32>(&fs::read("../network.idx").unwrap()).unwrap());
+    let network = NeuralNetwork::load(&load_idx::<f32>(&fs::read("network.idx").unwrap()).unwrap());
 
     let mut camera = rscam::new("/dev/video0").unwrap();
     let focus_area = Rect::new(
