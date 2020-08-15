@@ -160,10 +160,16 @@ pub fn mux_matrices<T: Float>(matrices: &Vec<Matrix<T>>) -> Matrix<T> {
     for new_matrix in matrices.iter() {
         let mut matrix = new_matrix.clone();
         if result.get_n() < matrix.get_n() {
-            result = result.h_concat(&Matrix::zero(result.get_m(), matrix.get_n() - result.get_n()));
+            result = result.h_concat(&Matrix::zero(
+                result.get_m(),
+                matrix.get_n() - result.get_n(),
+            ));
         }
         if matrix.get_n() != result.get_n() {
-            matrix = matrix.h_concat(&Matrix::zero(matrix.get_m(), result.get_n() - matrix.get_n()));
+            matrix = matrix.h_concat(&Matrix::zero(
+                matrix.get_m(),
+                result.get_n() - matrix.get_n(),
+            ));
         }
         result = result.v_concat(&matrix);
     }
@@ -184,7 +190,10 @@ pub fn demux_matrices<T: Float>(matrix: &Matrix<T>) -> Vec<Matrix<T>> {
             break;
         }
 
-        matrix_sizes.push((matrix[(0, n)].to_u32().unwrap(), matrix[(0, n + 1)].to_u32().unwrap()));
+        matrix_sizes.push((
+            matrix[(0, n)].to_u32().unwrap(),
+            matrix[(0, n + 1)].to_u32().unwrap(),
+        ));
     }
 
     let mut matrices = vec![];

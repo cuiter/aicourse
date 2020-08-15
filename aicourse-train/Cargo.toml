@@ -1,10 +1,9 @@
 [package]
-name = "aicourse-webcam-app"
+name = "aicourse-train"
 version = "0.1.0"
 authors = ["cuiter <casper.uiterwijk@gmail.com>"]
 edition = "2018"
 
 [dependencies]
-aicourse = { path = "../" }
-sdl2 = "0.34"
-rscam = "0.5"
+aicourse = { path = "../aicourse" }
+clap = "2.33"

@@ -1,26 +1,2 @@
-[package]
-name = "aicourse"
-version = "0.1.0"
-authors = ["cuiter <casper.uiterwijk@gmail.com>"]
-edition = "2018"
-default-run = "train"
-
-[features]
-default = [ "use_ndarray" ]
-use_ndarray = [ "ndarray" ]
-
-[dependencies]
-num-traits = "0.2"
-rand = "0.7"
-rand_pcg = "0.2"
-rayon = "1.3.1"
-ndarray = { version = "0.13", optional = true }
-clap = "2.33"
-
-[dev-dependencies]
-bencher = "0.1"
-
-[[bench]]
-name = "bench"
-path = "benches/bench.rs"
-harness = false
+[workspace]
+members = ["aicourse", "aicourse-train", "aicourse-webcam"]
