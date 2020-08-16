@@ -32,6 +32,8 @@ the model optimization is not optimal.
 
 ## Package: aicourse-train
 
+![](assets/aicourse-train.png)
+
 An executable that trains a DFF neural network to classify digits based on the
 MNIST dataset.
 
@@ -48,6 +50,8 @@ to classify the MNIST test dataset with an accuracy of ~92%. This takes
 approximately 7 minutes with a Ryzen 5 1600 CPU.
 
 ## Package: aicourse-webcam
+
+![](assets/aicourse-webcam.jpg)
 
 A program that reads a video feed from a webcam and classifies digits in
 real-time. Uses a neural network configuration from `aicourse-train`.
