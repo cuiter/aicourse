@@ -11,7 +11,7 @@ const TEST_IMAGES_PATH: &str = "t10k-images.idx3-ubyte";
 const TEST_LABELS_PATH: &str = "t10k-labels.idx1-ubyte";
 
 const DEFAULT_NETWORK_PATH: &str = "matrix.idx";
-const DEFAULT_DATASET_PATH: &str = "aicourse-train/datasets/mnist";
+const DEFAULT_DATASET_PATH: &str = "assets/datasets/mnist";
 const DEFAULT_SAMPLES_COUNT: u32 = 5000;
 const DEFAULT_NODE_COUNT: u32 = 64;
 const DEFAULT_BATCH_SIZE: u32 = 16;
@@ -111,8 +111,8 @@ fn main() {
                                .short("s")
                                .help("Train the network sequentially (default: parallel)"))
                       .get_matches();
-    let network_file = matches.value_of("network").unwrap_or("network.idx");
-    let dataset_dir = matches.value_of("dataset").unwrap_or("aicourse-train/datasets/mnist");
+    let network_file = matches.value_of("network").unwrap_or(DEFAULT_NETWORK_PATH);
+    let dataset_dir = matches.value_of("dataset").unwrap_or(DEFAULT_DATASET_PATH);
 
     let samples_count = matches.value_of("samples-count").map(|tc| tc.parse::<u32>().unwrap()).unwrap_or(DEFAULT_SAMPLES_COUNT);
     let node_count = matches.value_of("node-count").map(|nc| nc.parse::<u32>().unwrap()).unwrap_or(DEFAULT_NODE_COUNT);
