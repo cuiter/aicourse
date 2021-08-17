@@ -10,7 +10,7 @@ const TRAIN_LABELS_PATH: &str = "train-labels.idx1-ubyte";
 const TEST_IMAGES_PATH: &str = "t10k-images.idx3-ubyte";
 const TEST_LABELS_PATH: &str = "t10k-labels.idx1-ubyte";
 
-const DEFAULT_NETWORK_PATH: &str = "matrix.idx";
+const DEFAULT_NETWORK_PATH: &str = "dff_network.idx";
 const DEFAULT_DATASET_PATH: &str = "assets/datasets/mnist";
 const DEFAULT_SAMPLES_COUNT: u32 = 5000;
 const DEFAULT_NODE_COUNT: u32 = 64;
